@@ -136,6 +136,10 @@
       <EnableAssemblyGeneratedCodeListing Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EnableAssemblyGeneratedCodeListing>
     </MASM>
     <MASM Include="readWrite.asm" />
+    <MASM Include="start.asm" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Scrum Status Forms w Task List.xlsx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

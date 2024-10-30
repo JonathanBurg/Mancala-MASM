@@ -21,5 +21,11 @@
     <MASM Include="readWrite.asm">
       <Filter>Source Files</Filter>
     </MASM>
+    <MASM Include="start.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Scrum Status Forms w Task List.xlsx" />
   </ItemGroup>
 </Project>
