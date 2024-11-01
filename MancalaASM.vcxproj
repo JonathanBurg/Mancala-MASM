@@ -132,11 +132,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <MASM Include="board.asm" />
+    <MASM Include="boardController.asm" />
     <MASM Include="main.asm">
       <EnableAssemblyGeneratedCodeListing Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EnableAssemblyGeneratedCodeListing>
     </MASM>
     <MASM Include="readWrite.asm" />
-    <MASM Include="start.asm" />
+    <MASM Include="controller.asm" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Scrum Status Forms w Task List.xlsx" />

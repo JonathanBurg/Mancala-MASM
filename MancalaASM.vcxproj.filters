@@ -21,7 +21,13 @@
     <MASM Include="readWrite.asm">
       <Filter>Source Files</Filter>
     </MASM>
-    <MASM Include="start.asm">
+    <MASM Include="controller.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="board.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="boardController.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

@@ -1,7 +1,7 @@
-; Main Console Program
+; Main Control Program
 ; Jonathan Burgener
-; DD Month 2024
-; Description
+; 30 October, 2024
+; Manages user input and uses board and boardController to move and print the board
 ; 
 ; Register names:
 ; Register names are NOT case sensitive eax and EAX are the same register
@@ -17,7 +17,8 @@
 ;		ESI - Callee Saved register - Source Index
 ;		EDI - Callee Saved register - Destination Index
 ;		ESP - Callee Saved register - stack pointer
-;		EBP - Callee Saved register - base pointer.386P
+;		EBP - Callee Saved register - base pointer
+.386P
 
 .model flat
 

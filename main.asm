@@ -1,9 +1,7 @@
-; MASM Template
+; Main Program
 ; Jonathan Burgener
-; Thursday, September 9, 2024
-; Create a template for Assembly programs
-; 
-; Revised: JB, 30 October, 2024 - Updated processes
+; 30 October, 2024
+; Controls the flow of the program
 
 .386P
 .model	flat
@@ -40,16 +38,13 @@ main ENDP
 ;; Call exit()
 ;; Parameters:		None
 ;; Returns:			Nothing
-;; Registers Used:	EAX
+;; Registers Used:	None
 ;; 
 ;; Exits the program with a message to the user.
 ;;******************************************************************;
 exit PROC near
 _exit:
 	 ; Write an exit message for the user
-	;push  offset exitmsg
-	;call  charCount
-	;push  eax
 	push  offset exitmsg
 	call  writeline
 
