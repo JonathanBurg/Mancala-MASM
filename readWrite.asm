@@ -23,6 +23,19 @@
 ;		EDI - Callee Saved register - Destination Index
 ;		ESP - Callee Saved register - stack pointer
 ;		EBP - Callee Saved register - base pointer.386P
+; 
+; 
+; Routines:
+;		initializeConsole()
+;		readline()
+;		charCount(string)
+;		writeline(location)
+;		writeln()
+;		writeSp()
+;		writeNum(number)
+;		writeNumber(number)
+;		genNumber()
+;		readInt(prompt)
 
 .model flat
 
@@ -157,7 +170,6 @@ writeline PROC near
 _writeline:
 	pop   edx					; pop return address from the stack into EDX
 	pop   ebx					; Pop the buffer location of string to be printed into EBX
-	;pop   eax					; Pop the buffer size string to be printed into EAX.
 	push  edx					; Restore return address to the stack
 
 	push  ebx
@@ -200,19 +212,19 @@ writeln ENDP
 
 
 ;;******************************************************************;
-;; Call writeSp()
+;; Call writesp()
 ;; Parameters:		None
 ;; Returns:			Nothing
 ;; Registers Used:	None
 ;; 
 ;; Writes a space to the console
 ;;******************************************************************;
-writeSp PROC near
-_writeSp:
+writesp PROC near
+_writesp:
 	push  offset space
 	call  writeline
 	ret
-writeSp ENDP
+writesp ENDP
 
 
 ;;******************************************************************;
@@ -263,9 +275,6 @@ numExit:
 	mov   dx, 0					; cannot load a literal into an addressed location
 	mov   [ebx], dx				; Add a space to the end of the number
 	mov   [ebx+1], esi			; Add the number to the output sring
-	;push  offset numberBuffer
-	;call  charCount
-	;push  eax
 	push  offset numberBuffer
 	call  writeline
 	 ; Restore working registers

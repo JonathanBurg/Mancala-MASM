@@ -2,6 +2,11 @@
 ; Jonathan Burgener
 ; 30 October, 2024
 ; Controls the flow of the program
+; 
+; 
+; Routines:
+;		main()
+;		exitProgram()
 
 .386P
 .model	flat
@@ -13,7 +18,7 @@ extern  writeline:	near
 
 
 .data
-	exitmsg 	byte	10,10,10,"Hello World!",0 ; Exit message
+	exitmsg 	byte	10,10,10,"Hello World!",0	; Exit message
 
 
 .code
@@ -30,14 +35,14 @@ main PROC near
 _main:
 	call  initialize_console
 	call  start
-	call  exitProgram					; Exit the program with exit code 5
+	call  exitProgram			; Exit the program with exit code 5
 main ENDP
 
 
 ;;******************************************************************;
-;; Call exit()
-;; Parameters:		None	--	
-;; Returns:			Nothing	--	
+;; Call exitProgram()
+;; Parameters:		None
+;; Returns:			Nothing
 ;; Registers Used:	EAX, EDX
 ;; 
 ;; Exits the program with a message to the user.
@@ -57,8 +62,8 @@ END
 
 ;;******************************************************************;
 ;; Call routineName(param)
-;; Parameters:		param - Parameters in stack in reverse order
-;; Returns:			What does it return
+;; Parameters:		param	--	Parameters in stack in reverse order
+;; Returns:			retVal	--	What does it return
 ;; Registers Used:	EAX <(s)> {If saved and restored at the end}
 ;; 
 ;; Description
