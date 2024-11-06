@@ -133,7 +133,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <MASM Include="board.asm" />
-    <MASM Include="boardController.asm" />
     <MASM Include="main.asm">
       <EnableAssemblyGeneratedCodeListing Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EnableAssemblyGeneratedCodeListing>
     </MASM>

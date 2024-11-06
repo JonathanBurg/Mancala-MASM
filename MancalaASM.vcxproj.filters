@@ -27,9 +27,6 @@
     <MASM Include="board.asm">
       <Filter>Source Files</Filter>
     </MASM>
-    <MASM Include="boardController.asm">
-      <Filter>Source Files</Filter>
-    </MASM>
   </ItemGroup>
   <ItemGroup>
     <None Include="Scrum Status Forms w Task List.xlsx" />
