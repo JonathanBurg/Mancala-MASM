@@ -18,4 +18,6 @@ extern	writeNum:	 near
 
 .code
 
+printBoard
+
 END

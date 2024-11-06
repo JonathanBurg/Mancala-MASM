@@ -86,7 +86,7 @@ initialize_console ENDP
 ;;******************************************************************;
 ;; Call readline()
 ;; Parameters:		None
-;; Returns:			EAX - console input
+;; Returns:			EAX		--	console input
 ;; Registers Used:	EAX
 ;; 
 ;; Now the read/write handles are set, read a line
@@ -107,8 +107,8 @@ readline ENDP
 
 ;;******************************************************************;
 ;; Call charCount(string)
-;; Parameters:		string - String to check length of
-;; Returns:			EAX - Character Count
+;; Parameters:		string	--	String to check length of
+;; Returns:			EAX		--	Character Count
 ;; Registers Used:	EAX, EBX (s), ECX (s), EDX (s)
 ;; 
 ;; All strings need to end with a NULL (0). So I (WWC) do not have to 
@@ -142,11 +142,9 @@ charCount ENDP
 
 
 ;;******************************************************************;
-;; Call writeline(location, size)
-;; Parameters:		location - buffer location of string to 
-;; 						be printed
-;;					size - buffer size of string to be
-;;						printed
+;; Call writeline(location)
+;; Parameters:		location --	buffer location of the string to be
+;;								printed
 ;; Returns:			Nothing
 ;; Registers Used:	EAX, EBX, EDX
 ;; 
@@ -176,6 +174,14 @@ _writeline:
 	call  _WriteConsoleA@20
 	ret
 writeline ENDP
+
+
+write PROC near
+_write:
+	pop   edx					; pop return address from the stack into EDX
+	pop   eax
+	push  edx
+
 
 
 ;;******************************************************************;
@@ -218,7 +224,7 @@ writeSp ENDP
 
 ;;******************************************************************;
 ;; Call writeNum(number)
-;; Parameters:		number - Value to write to console
+;; Parameters:		number	--	Value to write to console
 ;; Returns:			Nothing
 ;; Registers Used:	EAX, EBX (s), ECX (s), EDX, ESI (s)
 ;; 
@@ -279,7 +285,7 @@ writeNum ENDP
 
 ;;******************************************************************;
 ;; Call writeNumber(number)
-;; Parameters:		number - Value to write to console
+;; Parameters:		number	--	Value to write to console
 ;; Returns:			Nothing
 ;; Registers Used:	EAX, EDX
 ;; 
@@ -367,8 +373,8 @@ genNumber ENDP
 
 ;;******************************************************************;
 ;; Call readInt(prompt)
-;; Parameters:		prompt - Prompt for the desired input
-;; Returns:			EAX - User inputted value
+;; Parameters:		prompt	--	Prompt for the desired input
+;; Returns:			EAX 	--	User inputted value
 ;; Registers Used:	EAX, EBX (s), ECX (s), EDX (s)
 ;; 
 ;; Routine to get user input and convert it to an integer

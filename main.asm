@@ -28,30 +28,30 @@ extern  writeline:	near
 ;;******************************************************************;
 main PROC near
 _main:
-	call initialize_console
-	call start
-	call exit
+	call  initialize_console
+	call  start
+	call  exitProgram					; Exit the program with exit code 5
 main ENDP
 
 
 ;;******************************************************************;
 ;; Call exit()
-;; Parameters:		None
-;; Returns:			Nothing
-;; Registers Used:	None
+;; Parameters:		None	--	
+;; Returns:			Nothing	--	
+;; Registers Used:	EAX, EDX
 ;; 
 ;; Exits the program with a message to the user.
 ;;******************************************************************;
-exit PROC near
-_exit:
+exitProgram PROC near
+_exitProgram:
 	 ; Write an exit message for the user
 	push  offset exitmsg
 	call  writeline
 
 	 ; ExitProcess(uExitCode)
-	push  5
+	push  5						; Push exit code 5
 	call  _ExitProcess@4
-exit ENDP
+exitProgram ENDP
 
 END
 
