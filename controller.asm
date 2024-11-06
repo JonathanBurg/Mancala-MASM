@@ -31,6 +31,7 @@ extern	writeNumber: near
 extern	writeNum:	 near
 extern	exitProgram: near
 extern	printBoard:	 near
+extern	updateStones: near
 
 
 .data
@@ -39,6 +40,7 @@ num1			DD		?		; first number for each iteration
 num2			DD		?		; second number for each iteration
 itr				DD		?		; iterator to make sure only 45 terms are printed
 active			DD		?		; Number to represent active player
+move			DD		?		; Current move being made
 msg				byte	"Hello, World", 10, 0					; ends with line feed (10) and NULL
 prompt			byte	"What pit do you choose?: ", 10, 0		; ends with string terminator (NULL or 0)
 p1				byte	"Player 1",0							; Universal string for indicating player 1
@@ -67,10 +69,29 @@ bufferAddr		dword	?
 start PROC near
 _start:
 	 ; Do Something
-	 mov  active, 1				; Initialize active with a 1
+	mov   active, 1				; Initialize active with a 1
+
 
 top:
-	 call userInput				; Get user input
+	call  userInput				; Get user input
+	pop   move					; Save move
+	push  move					; Push move for move check
+	push  active				; Push active player for move check
+	call  checkMove				; Check that the move is valid
+	pop   eax					; Pop move success state from the stack
+	
+	cmp   eax, 1
+	je    validMove
+	jmp   top
+	
+validMove:
+	call  updateStones			; Update the board
+	pop   eax					; Get state
+	cmp   eax, 1				; If move was valid and normal
+	je    top
+moveValid:
+	
+	
 exit:
 	ret							; Return to the main program.
 start ENDP
@@ -111,7 +132,13 @@ pl2:
 endPrompt:
 	push  offset t				; Write "'s Turn, what pit do you choose?: " to finish the prompt
 	call  writeline
+	push  offset prompt			; Push the prompt to the stack
+	call  readInt				; Get the user input
 
+	pop   eax					; Pop input value from the stack
+	pop   edx					; Pop return address from the stack into EDX
+	pop   inputPrompt			; Push the input value to the stack
+	push  edx					; Restore return address to the stack
 
 exit:
 	ret
@@ -124,9 +151,8 @@ userInput ENDP
 
 
 ;;******************************************************************;
-;; Call checkMove(move, active)
+;; Call checkMove(active,move)
 ;; Parameters:		move	--	number of the pit the player chose
-;;					active	--	number for the active player
 ;; Returns:			state	--	value to indicate what occured
 ;; Registers Used:	EAX, EBX, EDX
 ;; 
@@ -140,7 +166,6 @@ checkMove PROC near
 _checkMove:
 	pop   edx					; Pop return address from the stack into EDX
 	pop   eax					; Pop pit number into EAX
-	pop   ebx					; Pop active player into EBX
 	push  edx					; Restore return address to the stack
 
 	 ; Check that the number is valid
@@ -157,18 +182,14 @@ invalid:
 	pop   edx					; Pop return address from the stack into EDX
 	push  0						; Return a 0 in the stack to indicate the move was out of bounds
 	push  edx					; Restore return address to the stack
-	ret							; Return with a 0
+	ret							; Return with a 0 in the stack
 
-	 ; Update the board and return a 1 if the move was valid, 0 if there were no stones left in pit
+	 ; Return a 1 if the move was valid
 valid:
-	push  ebx
-	push  eax
-	call  updateBoard			; Update the board
-	pop   eax					; Pop success value into eax
 	pop   edx					; Pop return address from the stack into EDX
-	push  eax					; Return with success value in stack
+	push  1						; Return a 1 in the stack to indicate the move was valid
 	push  edx					; Restore return address to the stack
-	ret							; Return
+	ret							; Return with a 1 in the stack
 checkMove ENDP
 
 

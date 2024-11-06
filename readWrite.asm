@@ -176,13 +176,6 @@ _writeline:
 writeline ENDP
 
 
-write PROC near
-_write:
-	pop   edx					; pop return address from the stack into EDX
-	pop   eax
-	push  edx
-
-
 
 ;;******************************************************************;
 ;; Call writeln()
@@ -319,41 +312,41 @@ writeNumber ENDP
 genNumber PROC near
 _genNumber:
 	; Subroutine Prologue
-	push  ebp				; Save the old base pointer value.
-	mov   ebp, esp			; Set the new base pointer value to access parameters
-	sub   esp, 4			; Make room for one 4-byte local variable, if needed
-	push  edi				; Save the values of registers that the function
-	push  esi				; will modify. This function uses EDI and ESI.
+	push  ebp					; Save the old base pointer value.
+	mov   ebp, esp				; Set the new base pointer value to access parameters
+	sub   esp, 4				; Make room for one 4-byte local variable, if needed
+	push  edi					; Save the values of registers that the function
+	push  esi					; will modify. This function uses EDI and ESI.
 	; The eax, ebx, ecx, edx registers do not need to be saved,
 	;	  but they are for the sake of the calling routine.
-	push  eax				; EAX needed as a dividend
-	;push ebx				; Only save if not used as a return value
-	push  ecx				; Ditto
-	push  edx				; Ditto
+	push  eax					; EAX needed as a dividend
+	;push ebx					; Only save if not used as a return value
+	push  ecx					; Ditto
+	push  edx					; Ditto
 	; Subroutine Body
-	mov   eax, [ebp+8]		; Move value of parameter 1 into EAX
-	mov   ebx, [ebp+12]		; Save the start of the write buffer
-	mov   ecx, 10			; Set the divisor to ten
-	;mov   esi, 0			; Count number of numbers written
+	mov   eax, [ebp+8]			; Move value of parameter 1 into EAX
+	mov   ebx, [ebp+12]			; Save the start of the write buffer
+	mov   ecx, 10				; Set the divisor to ten
+	;mov   esi, 0				; Count number of numbers written
 ;; The dividend is place in eax, then divide by ecx, the result goes into eax, with the remiander in edx
-	cmp   eax, 0			; Stop when the nubmer is 0
+	cmp   eax, 0				; Stop when the nubmer is 0
 	jle   numExit
-	mov   edx, 0			; Clear the register for the remainder
-	div   ecx				; Do the divide
-	add   dx,'0'			; Turn the remainer into an ASCII number
-	;push  dx				; Now push the remainder onto the stack
-	;inc   esi				; increment number count
+	mov   edx, 0				; Clear the register for the remainder
+	div   ecx					; Do the divide
+	add   dx,'0'				; Turn the remainer into an ASCII number
+	;push  dx					; Now push the remainder onto the stack
+	;inc   esi					; increment number count
 ;; Do another recursive call;
-	push  ebx				; Pass on the start of the number buffer.
-	push  eax				; And the number
-	call  genNumber			; Do the recursion
-	pop   eax				; Remove the two parameters
-	pop   eax				; Leave ebx alone
+	push  ebx					; Pass on the start of the number buffer.
+	push  eax					; And the number
+	call  genNumber				; Do the recursion
+	pop   eax					; Remove the two parameters
+	pop   eax					; Leave ebx alone
 ;; Load the number, one digit at a time.
-	mov   bx, dx			; Add the number to the output sring
-	inc   ebx				; go to the next ASCII location
-	mov   dx, 0				; cannot load a literal into an addressed location
-	mov   bx, dx			; Add a space to the end of the number
+	mov   bx, dx				; Add the number to the output sring
+	inc   ebx					; go to the next ASCII location
+	mov   dx, 0					; cannot load a literal into an addressed location
+	mov   bx, dx				; Add a space to the end of the number
 	
 numExit:
 	; If eax is used as a return value, make sure it is loaded by now.
@@ -363,10 +356,10 @@ numExit:
 	pop   ecx
 	;pop   ebx
 	pop   eax
-	pop   esi		; Recover register values
+	pop   esi					; Recover register values
 	pop   edi
-	mov   esp, ebp	; Deallocate local variables
-	pop   ebp		; Restore the caller''s base pointer value
+	mov   esp, ebp				; Deallocate local variables
+	pop   ebp					; Restore the caller''s base pointer value
 	ret
 genNumber ENDP
 
@@ -374,8 +367,8 @@ genNumber ENDP
 ;;******************************************************************;
 ;; Call readInt(prompt)
 ;; Parameters:		prompt	--	Prompt for the desired input
-;; Returns:			EAX 	--	User inputted value
-;; Registers Used:	EAX, EBX (s), ECX (s), EDX (s)
+;; Returns:			input 	--	User inputted value
+;; Registers Used:	EAX, EBX (s), ECX (s), EDX
 ;; 
 ;; Routine to get user input and convert it to an integer
 ;; Algorithm written by Wayne Cook
@@ -383,22 +376,18 @@ genNumber ENDP
 ;;******************************************************************;
 readInt PROC near
 _readInt:
-	pop   eax					; pop return address from the stack into EAX
+	pop   edx					; Pop return address from the stack into EDX
 	pop   inputPrompt			; Pop the number to be written.
-	push  eax					; Restore return address to the stack
+	push  edx					; Restore return address to the stack
 	 ; Store working registers
 	push  ebx
 	push  ecx
-	push  edx
 	xor   eax, eax
 	xor   ebx, ebx
 	xor   ecx, ecx
 	xor   edx, edx
 
 	 ; Type a prompt for the user
-	;push  inputPrompt
-	;call  charCount
-	;push  eax
 	push  inputPrompt
 	call  writeline
 
@@ -415,9 +404,9 @@ findNumberLoop:
 	cmp   bl, '9'				; Make sure it is not too high
 	jg    endNumberLoop
 	sub   bl, '0'
-	cmp   bl, 0					; or too low
+	cmp   bl, 0					; Or too low
 	jl    endNumberLoop
-	mov   edx, 10				; save multiplier for later need
+	mov   edx, 10				; Save multiplier for later need
 	mul   edx
 	add   eax, ebx
 	inc   ecx					; Go to next location in number
@@ -426,11 +415,13 @@ findNumberLoop:
 	 ; Closes routine and restores working registers
 endNumberLoop:
 	 ; Restore working registers
-	pop   edx
 	pop   ecx
 	pop   ebx
 
-	 ; Returns with the input value in EAX
+	pop   edx					; Pop return address from the stack into EDX
+	push  eax					; Push input value to stack
+	push  edx					; Restore return address to the stack
+	 ; Returns with the input value in the stack
 	ret
 readInt ENDP
 
