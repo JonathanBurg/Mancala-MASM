@@ -31,4 +31,9 @@
   <ItemGroup>
     <None Include="Scrum Status Forms w Task List.xlsx" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="BoardDesigns.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+  </ItemGroup>
 </Project>

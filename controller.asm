@@ -39,11 +39,11 @@ num1			DD		?		; first number for each iteration
 num2			DD		?		; second number for each iteration
 itr				DD		?		; iterator to make sure only 45 terms are printed
 active			DD		?		; Number to represent active player
-msg				byte	"Hello, World", 10, 0							; ends with line feed (10) and NULL
-prompt			byte	"'s Turn, what pit do you choose?: ", 10, 0		; ends with string terminator (NULL or 0)
-p1				byte	"Player 1",0
-p2				byte	"Player 2",0
-t				byte	"'s turn.",10,0
+msg				byte	"Hello, World", 10, 0					; ends with line feed (10) and NULL
+prompt			byte	"What pit do you choose?: ", 10, 0		; ends with string terminator (NULL or 0)
+p1				byte	"Player 1",0							; Universal string for indicating player 1
+p2				byte	"Player 2",0							; Universal string for indicating player 2
+t				byte	"'s turn.",10,0							; Line end for prompting which player is active
 movBnds			byte	"Move out of bounds: Please enter a number between 1 and 6!",10,0
 endln			byte	"    ", 10, 0
 error			byte	"Program ran into error, stopping...",10,0
@@ -67,8 +67,10 @@ bufferAddr		dword	?
 start PROC near
 _start:
 	 ; Do Something
-	 mov active, 3
-	 call userInput
+	 mov  active, 1				; Initialize active with a 1
+
+top:
+	 call userInput				; Get user input
 exit:
 	ret							; Return to the main program.
 start ENDP
@@ -107,8 +109,9 @@ pl2:
 	jmp   endPrompt
 
 endPrompt:
-	push  offset t
+	push  offset t				; Write "'s Turn, what pit do you choose?: " to finish the prompt
 	call  writeline
+
 
 exit:
 	ret
