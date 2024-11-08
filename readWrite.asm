@@ -416,8 +416,8 @@ findNumberLoop:
 	cmp   bl, 0					; Or too low
 	jl    endNumberLoop
 	mov   edx, 10				; Save multiplier for later need
-	mul   edx
-	add   eax, ebx
+	mul   edx					; Multiply number by 10 to create space to append the digit
+	add   eax, ebx				; Add digit to EAX
 	inc   ecx					; Go to next location in number
 	jmp   findNumberLoop
 
