@@ -82,6 +82,8 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EntryPointSymbol>main</EntryPointSymbol>
+      <AdditionalLibraryDirectories>c:\Irvine</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);Irvine32.lib;</AdditionalDependencies>
     </Link>
     <MASM>
       <AssembledCodeListingFile>$(IntDir)$(ProjectName).lst</AssembledCodeListingFile>
@@ -132,12 +134,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <MASM Include="board.asm" />
+    <MASM Include="board.asm">
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">c:\Irvine\</IncludePaths>
+    </MASM>
     <MASM Include="main.asm">
       <EnableAssemblyGeneratedCodeListing Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EnableAssemblyGeneratedCodeListing>
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">c:\Irvine\</IncludePaths>
     </MASM>
-    <MASM Include="readWrite.asm" />
-    <MASM Include="controller.asm" />
+    <MASM Include="readWrite.asm">
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">c:\Irvine\</IncludePaths>
+    </MASM>
+    <MASM Include="controller.asm">
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">c:\Irvine\</IncludePaths>
+    </MASM>
   </ItemGroup>
   <ItemGroup>
     <None Include="Scrum Status Forms w Task List.xlsx" />

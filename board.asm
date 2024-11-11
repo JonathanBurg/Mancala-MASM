@@ -31,7 +31,7 @@ extern	writesp:	 near
 	boardTop		byte	10, 10, "	", 201, 205, 205, 205, 205, 203, 205, "6", 205, 205, 209, 
 							205, "5", 205, 205, 209, 205, "4", 205, 205, 209, 205, "3", 205, 205, 
 							209, 205, "2", 205, 205, 209, 205, "1", 205, 205, 209, 205, 205, 205, 
-							205, 187, 10, 0						; Top border of the board
+							205, 187,"?", 10, 0						; Top border of the board
 	boardLeft		byte	"	", 186, "    ", 186, " ", 0		; Left Side, 2nd and 4th rows
 	boardLeftC		byte	"	", 186, " ", 0					; Left Side, 3rd row
 	boardCenter		byte	" ", 204, 205, 205, 205, 205, 216, 205, 205, 205, 205, 216, 205, 205, 

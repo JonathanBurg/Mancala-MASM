@@ -2,6 +2,7 @@
 Jonathan Burgener
 6 November 2024
 Experimenting with different board designs
+(Best viewed in Visual Studio)
 
 Pure ASCII
 	*---------------------------------------*
@@ -121,7 +122,16 @@ Symbols used:	─ │ ┆ ┊ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼ ╎ ═ ║ �
 				╞ ╟ ╠ ╡ ╢ ╣ ╤ ╥ ╦ ╧ ╨ ╩ ╪ ╫ ╬ ╭ ╮ ╯ ╰
 Symbol Source: https://www.w3.org/TR/xml-entity-names/025.html
 
-Found Extended ASCII codes for these symbols since Visual Studio really doesn't like Unicode characters:
+
+Can't write unicode to the console since it isn't set up to handle the encoding.
+	And Visual Studio keeps trying to change the encoding of board.asm to preserve
+	the unicode, which then makes the file unusable since the code is in the wrong
+	encoding, and I can't find a way to manually change the encoding back to UTC-8.
+
+Found Extended ASCII codes for these symbols that don't break when in the console:
+(Source: https://www.lookuptables.com/text/extended-ascii-table)
+   ASCII
+   Code   Symbol
 	179		│
 	180		┤
 	181		╡
@@ -163,7 +173,8 @@ Found Extended ASCII codes for these symbols since Visual Studio really doesn't 
 	217		┘
 	218		┌
 
-Taking this version (since I couldn't find the nice round corners in ASCII)
+
+Taking this version (Unfortunately, I couldn't find the nice round corners in ASCII)
 	╔════╦═6══╤═5══╤═4══╤═3══╤═2══╤═1══╤════╗
 	║    ║ 00 │ 00 │ 00 │ 00 │ 00 │ 00 │    ║
 	║ 00 ╠════╪════╪════╪════╪════╪════╡ 00 ║
@@ -172,8 +183,8 @@ Taking this version (since I couldn't find the nice round corners in ASCII)
 
 And translating it to strings with the extended ASCII codes:
 Top Border:
-				 ╔	 ═	 ═	 ═	 ═	 ╦	 ═	 6	 ═	 ═	 ╤	 ═	 5	 ═	 ═	 ╤	 ═	 4	 ═	 ═	 ╤	 ═	 3	 ═	 ═	 ╤	 ═	 2	 ═	 ═	 ╤	 ═	 1	 ═	 ═	 ╤	 ═	 ═	 ═	 ═	 ╗
-	"	",10,10,201,205,205,205,205,203,205,"6",205,205,209,205,"5",205,205,209,205,"4",205,205,209,205,"3",205,205,209,205,"2",205,205,209,205,"1",205,205,209,205,205,205,205,187,10,0
+				╔	═	═	═	═	╦	═	6	═	═	╤	═	5	═	═	╤	═	4	═	═	╤	═	3	═	═	╤	═	2	═	═	╤	═	1	═	═	╤	═	═	═	═	╗
+ 10,10,"	", 201,205,205,205,205,203,205,"6",205,205,209,205,"5",205,205,209,205,"4",205,205,209,205,"3",205,205,209,205,"2",205,205,209,205,"1",205,205,209,205,205,205,205,187,10,0
 
 Left side for 2nd and 4th rows:
 		   ║		  ║
