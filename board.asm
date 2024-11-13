@@ -4,16 +4,19 @@
 ; Prints and controls the board
 ; Revised: JB, 6 November 2024 - Added stubs for printing, updating, and initializing the board
 
-;extern	writeline:	 near
-;extern	readline:	 near
-;extern	charCount:	 near
-;extern	writeNumber: near
-;extern	writeNum:	 near
-;extern	writesp:	 near
+.386P
+
+.model flat
+
+extern	writeline:	 near
+extern	readline:	 near
+extern	charCount:	 near
+extern	writeNumber: near
+extern	writeNum:	 near
+extern	writesp:	 near
 
 ;INCLUDE Irvine32.inc
 
-.386P
 .data
 	;; Data for Irvine
 	;outHandle    HANDLE ?
@@ -90,8 +93,10 @@ _printBd:
 	push  ecx					; Ditto
 	push  edx					; Ditto
 	push  offset boardTop		; Print the top of the board
+	call  writeline				; Write to console
 	;call  print
 	push  offset boardLeft		; Print left side of second row
+	call  writeline				; Write to console
 	;call  print
 	mov   ebx, p1Pit			; EBX will point to the current value being printed
 	mov   ecx, 6				; Counter to stop loop
@@ -100,24 +105,32 @@ _rowTwo:
 	mov   eax, 0
 	add   eax, [p1Pit+ebx]
 	add   ebx, 4
-	;call  printNumber
+	push  eax
+	call  printNumber
 	call  printMid
 	dec   ecx
 	jnz   _rowTwo
 _endRowTwo:
-	push  offset boardRight
+	push  offset boardRight		; Print right side of board for the second row
+	call  writeline				; Write to console
 	;call  print
-	push  offset boardLeftC
+	push  offset boardLeftC		; Print left side of third row
+	call  writeline				; Write to console
 	;call  print
-	mov   eax, p1Manc
-	;call  printNumber
+	;mov   eax, p1Manc
+	push  p1Manc
+	call  printNumber
 	push  offset boardCenter
+	call  writeline
 	;call  print
-	mov   eax, p2Manc
-	;call  printNumber
+	;mov   eax, p2Manc
+	push  p2Manc
+	call  printNumber
 	push  offset boardRightC
+	call  writeline
 	;call  print
 	push  offset boardLeft		; Print left side of second row
+	call  writeline
 	;call  print
 	mov   ebx, p2Pit			; EBX will point to the current value being printed
 	mov   ecx, 6				; Counter to stop loop
@@ -126,71 +139,113 @@ _rowFour:
 	mov   eax, 0
 	add   eax, [p2Pit+ebx]
 	add   ebx, 4
-	;call  printNumber
-	;call  printMid
+	push  eax
+	call  printNumber
+	call  printMid
 	dec   ecx
 	jnz   _rowFour
 _endRowFour:
 	push  offset boardRight
-	call  print
+	call  writeline
+	;call  print
 	push  offset boardBottom
-	call  print
+	call  writeline
+	;call  print
 
 _exit:
+	pop   edx					; Restore working registers
+	pop   ecx
+	pop   ebx
+
 	ret
 printBoard ENDP
 
+
+;;******************************************************************;
+;; Call movePit(active, pit)
+;; Parameters:		active	--	Number for the active player
+;;					pit		--	Selected pit to move
+;; Returns:			state	--	What move resulted in (Fail, Success)
+;; Registers Used:	EAX <(s)> {If saved and restored at the end}
+;; 
+;; Empties selected pit and moves the stones.
+;;******************************************************************;
+movePit PROC near
+_movePit:
+	ret
+movePit ENDP
+
+
+;;******************************************************************;
+;; Call printNumber(number)
+;; Parameters:		number	--	number to write to console
+;; Returns:			Nothing
+;; Registers Used:	EAX, EBX (s), ECX (s), EDX
+;; 
+;; Writes a number to the console. Writes a space to the console
+;; before the number for a single digit number.
+;;******************************************************************;
 printNumber PROC near
 _printNumber:
-	push  eax
-	push  ebx
-	push  ecx
-	push  edx
+	pop   edx					; Pop return address from the stack into EDX
+	pop   eax					; Pop number from the stack into EAX
+	push  edx					; Restore return address to the stack
+	push  eax					; Save working registers
+	push  ebx					; Ditto
+	push  ecx					; Ditto
 	cmp   eax,9
 	jle   _printZero
-_printNum:
+_printNum:						; Write number to the console
 	push  eax
-	call  printnum
+	call  writeNum
+	;call  printnum
 	jmp   _exit
-_printZero:
+_printZero:						; Write a space if number has a single digit
 	push  eax
 	;push  offset zero
 	;call  writeline
-	call  writespc
+	;call  writespc
+	call  writesp
 	pop   eax
 	jmp   _printNum
 _exit:
-	pop   edx
-	pop   ecx
+	pop   ecx					; Restore Working Registers
 	pop   ebx
 	pop   eax
 	ret
 printNumber ENDP
 
 
+;;******************************************************************;
+;; Call printMid()
+;; Parameters:		None
+;; Returns:			Nothing
+;; Registers Used:	EAX (s), EBX (s), ECX (s), EDX (s)
+;; 
+;; Writes a border to the console between pits
+;;******************************************************************;
 printMid PROC near
 _printMid:
+	 ; Save working registers
 	push  eax
 	push  ebx
 	push  ecx
 	push  edx
-	push  brown
-	push  offset boardMid
-	call  printline
+
+	 ; Print intermediate border
+	;push  brown				; Push brown as color for the border
+	push  offset boardMid		; Push address of border
+	;call  printline			; Write border to console in brown text
+	call  writeline				; Write border to console
+
+	; Restore Working Registers
 	pop   edx
 	pop   ecx
 	pop   ebx
 	pop   eax
+
 	ret
 printMid ENDP
-
-
-writespc PROC near
-_writespc:
-	push  offset space
-	call  print
-	ret
-writespc ENDP
 
 
 ;;******************************************************************;
@@ -216,25 +271,42 @@ updateStones ENDP
 
 
 ;;******************************************************************;
+;; Call writespc()
+;; Parameters:		None
+;; Returns:			Nothing
+;; Registers Used:	EDX
+;; 
+;; Writes a space to the console using Irvine
+;;******************************************************************;
+;writespc PROC near
+;_writespc:
+;	push  offset space
+;	call  print
+;	ret
+;writespc ENDP
+
+
+;;******************************************************************;
 ;; Call print(addr)
 ;; Parameters:		addr	--	Address of string to print
 ;; Returns:			Nothing
 ;; Registers Used:	EAX, EDX
 ;; 
-;; Writes a string to the standard console
+;; Writes a string to the standard console using Irvine
 ;;******************************************************************;
-print PROC near
-_print:
-	pop   edx					; Pop return address from the stack into EDX
-	pop   eax					; Pop addr into EAX
-	push  edx					; Restore return address to the stack
+;print PROC near
+;_print:
+;	pop   edx					; Pop return address from the stack into EDX
+;	pop   eax					; Pop addr into EAX
+;	push  edx					; Restore return address to the stack
+;
+;	push  white					; Push white for the text color (default)
+;	push  eax					; Push string address
+;	call  printline				; Write the string
+;
+;	ret
+;print ENDP
 
-	push  white					; Push white for the text color (default)
-	push  eax					; Push string address
-	call  printline				; Write the string
-
-	ret
-print ENDP
 
 ;;******************************************************************;
 ;; Call print(addr, color)
@@ -243,28 +315,28 @@ print ENDP
 ;; Returns:			Nothing
 ;; Registers Used:	EAX, EBX, EDX
 ;; 
-;; Writes a string to the standard console with color
+;; Writes a string to the standard console with color using Irvine
 ;; Colors:
 ;;	black (0), white (1), gray (2), brown (3), red (4), yellow (5), 
 ;;	green (6), blue (7), cyan (8), magenta (9), lightGray (10), 
 ;;	lightRed (11), lightGreen (12), lightBlue (13), lightCyan (14), 
 ;;	and lightMagenta (15)
 ;;******************************************************************;
-printline PROC near
-_printline:
-	pop   ebx					; Pop return address from the stack into EBX
-	pop   eax					; Pop addr into EAX
-	pop   edx					; Pop color number into EDX
-	push  ebx					; Restore return address to the stack
-
-	call  SetTextColor			; Set the color
-	call  WriteString			; Write the string to the standard console
-
-	mov   eax, white			; Set the color to White
-	call  SetTextColor			; Reset the color
-
-	ret
-printline ENDP
+;printline PROC near
+;_printline:
+;	pop   ebx					; Pop return address from the stack into EBX
+;	pop   eax					; Pop addr into EAX
+;	pop   edx					; Pop color number into EDX
+;	push  ebx					; Restore return address to the stack
+;
+;	call  SetTextColor			; Set the color
+;	call  WriteString			; Write the string to the standard console
+;
+;	mov   eax, white			; Set the color to White
+;	call  SetTextColor			; Reset the color
+;
+;	ret
+;printline ENDP
 
 
 ;;******************************************************************;
@@ -273,20 +345,21 @@ printline ENDP
 ;; Returns:			Nothing
 ;; Registers Used:	EAX, EDX
 ;; 
-;; Writes an integer to the standard console
+;; Writes an integer to the standard console using Irvine
 ;;******************************************************************;
-printnum PROC near
-_printnum:
-	pop   edx					; Pop return address from the stack into EDX
-	pop   eax					; Pop addr into EAX
-	push  edx					; Restore return address to the stack
+;printnum PROC near
+;_printnum:
+;	pop   edx					; Pop return address from the stack into EDX
+;	pop   eax					; Pop addr into EAX
+;	push  edx					; Restore return address to the stack
+;
+;	push  white					; Push white for the text color (default)
+;	push  eax					; Push string address
+;	call  printint				; Write the string
+;
+;	ret
+;printnum ENDP
 
-	push  white					; Push white for the text color (default)
-	push  eax					; Push string address
-	call  printint				; Write the string
-
-	ret
-printnum ENDP
 
 ;;******************************************************************;
 ;; Call printint(num, color)
@@ -295,27 +368,27 @@ printnum ENDP
 ;; Returns:			Nothing
 ;; Registers Used:	EAX, EBX, EDX
 ;; 
-;; Writes an integer to the standard console with color
+;; Writes an integer to the standard console with color using Irvine
 ;; Colors:
 ;;	black (0), white (1), gray (2), brown (3), red (4), yellow (5), 
 ;;	green (6), blue (7), cyan (8), magenta (9), lightGray (10), 
 ;;	lightRed (11), lightGreen (12), lightBlue (13), lightCyan (14), 
 ;;	and lightMagenta (15)
 ;;******************************************************************;
-printint PROC near
-_printint:
-	pop   ebx					; Pop return address from the stack into EBX
-	pop   eax					; Pop addr into EAX
-	pop   edx					; Pop color number into EDX
-	push  ebx					; Restore return address to the stack
-
-	call  SetTextColor			; Set the color
-	call  WriteInt				; Write the string to the standard console
-
-	mov   eax, white			; Set the color to White
-	call  SetTextColor			; Reset the color
-
-	ret
-printint ENDP
+;printint PROC near
+;_printint:
+;	pop   ebx					; Pop return address from the stack into EBX
+;	pop   eax					; Pop addr into EAX
+;	pop   edx					; Pop color number into EDX
+;	push  ebx					; Restore return address to the stack
+;
+;	call  SetTextColor			; Set the color
+;	call  WriteInt				; Write the string to the standard console
+;
+;	mov   eax, white			; Set the color to White
+;	call  SetTextColor			; Reset the color
+;
+;	ret
+;printint ENDP
 
 END
