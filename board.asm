@@ -3,6 +3,7 @@
 ; 1 November, 2024
 ; Prints and controls the board
 ; Revised: JB, 6 November 2024 - Added stubs for printing, updating, and initializing the board
+; Revised: JB, 14 November 2024 - Adding controls for changing the board based on input from controller.asm
 
 .386P
 
@@ -14,6 +15,7 @@ extern	charCount:	 near
 extern	writeNumber: near
 extern	writeNum:	 near
 extern	writesp:	 near
+extern	exitProgram: near	; main.asm
 
 ;INCLUDE Irvine32.inc
 
@@ -25,10 +27,14 @@ extern	writesp:	 near
 
 	;; Variables to hold number of stones in each pit
 						  ; ?, ?, ?, ?, ?, ?
-	p1Pit			DD		1, 2, 3, 4, 5, 6					; Array to hold the pits on player 1''s side
-	p2Pit			DD		7, 8, 9,10,11,12					; Array to hold the pits on player 2''s side 
-	p1Manc			DD		13									; Number of stones in player 1''s mancala ; ?
-	p2Manc			DD		14									; Number of stones in player 2''s mancala ; ?
+	p1Pit			DD		?, ?, ?, ?, ?, ?					; Array to hold the pits on player 1''s side
+	p2Pit			DD		?, ?, ?, ?, ?, ?					; Array to hold the pits on player 2''s side 
+	p1Manc			DD		?									; Number of stones in player 1''s mancala ; ?
+	p2Manc			DD		?									; Number of stones in player 2''s mancala ; ?
+	heldStones		DD		?									; Stones left to place
+	mainPit			DD		?									; Buffer to hold active player''s pits
+	secPit			DD		?									; Buffer to hold inactive player''s pits
+	actManc			DD		?									; Number of stones in active player''s mancala
 
 	;; Message data
 	noStone			byte	"No stones in desired pit!",10,0	; Message for when picked pit is empty
@@ -37,6 +43,7 @@ extern	writesp:	 near
 	p2				byte	"Player 2",0						; Universal string for indicating player 1
 	zero			byte	"0",0								; For when the zero is missing
 	space			byte	" ",0								; Space to print
+	error			byte	"Program ran into error, stopping...", 10, 0 ; Critical error encountered
 
 	;; Board Parts
 	boardTop		byte	10, 10, "	", 201, 205, 205, 205, 205, 203, 205, "6", 205, 205, 209, 
@@ -71,6 +78,31 @@ _initializeBoard:
 	; Get the Console standard output handle:
 	;INVOKE GetStdHandle,STD_OUTPUT_HANDLE
 	;mov outHandle,eax
+
+	 ; Set amount of stones in the mancala''s to zero
+	mov   eax, 0
+	mov   p1Manc, eax
+	mov   p2Manc, eax
+
+	 ; Set amount of stones in each pit to four
+	mov   eax, 4				; Set number of stones to put in each pit to four
+	mov   ecx, 1				; Reset counter to 1
+	mov   ebx, [p1Pit]			; Store address of p1Pit in EBX
+	mov   edx, [p2Pit]			; Store address pf p2Pit in EDX
+
+ ;; Set amount of stones in each pit
+_initializeSides:
+	cmp   ecx, 6				; Check if the counter reached the maximum pit number
+	jg    _exit					; If max pit was passed, move to the Mancala
+	add   bl, al				; Set the amount of stones on Player 1''s side
+	add   dl, al				; Set the amount of stones on Player 2''s side
+	add   ebx, 4				; Increment address by 4
+	add   edx, 4				; Increment address by 4
+	inc   ecx					; Increment the counter
+	add   ebx, 4				; Increment offset to next pit
+	jmp   _initializeSides		; Jump back to top of loop
+
+_exit:
 	ret
 initializeBoard ENDP
 
@@ -166,14 +198,246 @@ printBoard ENDP
 ;; Parameters:		active	--	Number for the active player
 ;;					pit		--	Selected pit to move
 ;; Returns:			state	--	What move resulted in (Fail, Success)
-;; Registers Used:	EAX <(s)> {If saved and restored at the end}
+;; Registers Used:	EAX, EBX, ECX (s), EDX
 ;; 
 ;; Empties selected pit and moves the stones.
+;; States;
+;;		1 - Move success
+;;		2 - Extra Move
+;;		3 - Invalid Active Player Number
+;;		4 - Empty Pit
+;;		5 - Invalid Pit Number
+;;		6 - Captured Pit
 ;;******************************************************************;
 movePit PROC near
 _movePit:
-	ret
+	pop   edx					; Pop return address from the stack into EDX
+	pop   ebx					; Pop active player number into EBX
+	pop   eax					; Pop selected pit into EAX
+	push  edx					; Restore return address to the stack
+	push  ecx					; Save ECX
+
+	cmp   ebx, 1				; Check if Player 1 is the active player
+	je    _p1Active				; Jump to _p1Active if Player 1 is active
+	cmp   ebx, 2				; Check if Player 2 is the active player
+	je    _p2Active				; Jump to _p2Active if Player 2 is active
+	jmp    _badActive			; Jump to _badActive if the active number is invalid
+
+ ;; Set player 1 as active player
+_p1Active:
+	mov   edx, [p1Pit]
+	mov   mainPit, edx			; Store address of p1Pit in mainPit
+	mov   edx, [p2Pit]		
+	mov   secPit, edx			; Store address of p2Pit in secPit
+	mov   edx, [p1Manc]
+	mov   actManc, edx			; Store address of p1Manc in actManc
+	jmp   _pitCheck				; Move stones
+
+ ;; Set player 2 as active player
+_p2Active:
+	mov   edx, [p2Pit]
+	mov   mainPit, edx			; Store address of p2Pit in mainPit
+	mov   edx, [p1Pit]		
+	mov   secPit, edx			; Store address of p1Pit in secPit
+	mov   edx, [p2Manc]
+	mov   actManc, edx			; Store address of p2Manc in actManc
+	jmp   _pitCheck				; Move stones
+
+ ;; Move stones
+_pitCheck:
+	push  eax					; Save EAX for later
+	push  mainPit				; Push address of active side pits to check move
+	push  eax					; Push pit to check pit number
+	call  checkPit
+	pop   ebx					; Pop move check state into EBX
+	cmp   ebx, 1				; Check if move is valid
+	je    _makeMove				; Make move if it is valid
+	jmp	  _badPitCheck			; Pit check came back bad
+
+ ;; Make Move
+_makeMove:
+	mov   ecx, eax				; Store pit number in ECX for loop
+	mov   edx, eax				; Use EDX to get the address offset
+	sub   edx, 1				; Subtract offset by 1 so the first pit is not skipped
+	imul  edx, 4				; Multiply EDX by 4 to get address offset
+	mov   eax, 0				; Clear EAX
+	add   eax, [mainPit+edx]	; Put number of stones in the pit into EAX
+	mov   heldStones, eax		; Store number of stones in heldStones
+	mov   eax, 0				; Clear EAX
+	mov   [mainPit+edx], eax	; Clear starting pit
+	mov   ebx, edx				; Move address offset to EBX
+	add   ebx, 4				; Increment offset to next pit
+	inc   ecx					; Increment counter to next pit
+	mov   edx, 1				; Set last area placed to 1 (Main side)
+	jmp   _placeMainSideLoop	; Start loop to place stones
+
+ ;; Start loop of adding stones to pits on the active player''s side
+_placeMainSide:
+	mov   edx, 1				; Use EDX to hold which place was last
+	mov   ecx, 1				; Reset counter to 1
+	mov   ebx, 0				; Set address offset to 0
+	jmp   _placeMainSideLoop	; Start loop
+
+ ;; Add stones to pits on active player''s side
+_placeMainSideLoop:
+	mov   eax, 1				; Set number of stones to 1
+	cmp   heldStones, 0			; Check if there are no more held stones
+	jle   _exitLoops			; If there are no more held stones, exit the loop
+	cmp   ecx, 6				; Check if the counter reached the maximum pit number
+	jg    _placeMancala			; If max pit was passed, move to the Mancala
+	add   [mainPit+ebx], eax	; Increment the amount of stones in the pit
+	dec   heldStones			; Decrement the amount of stones held
+	inc   ecx					; Increment the counter
+	add   ebx, 4				; Increment offset to next pit
+	jmp   _placeMainSideLoop	; Jump back to top of loop
+
+ ;; Add a stone to the active player''s mancala
+_placeMancala:
+	mov   edx, 2				; Set last placed location to 2
+	mov   eax, 1				; Get ready to add 1 to the active player''s mancala (can''t add literal to memory directly)
+	add   [actManc], eax		; Add a stone to the Mancala
+	dec   heldStones			; Decrement amount of held stones
+	jnz   _placeOtherSide		; Start adding stones to inactive side if the number of held stones is not zero
+	jmp   _exitLoops			; If there are no more held stones, exit the loop
+
+ ;; Start loop to add stones to the inactive player''s pits
+_placeOtherSide:
+	mov   edx, 3				; Set last placed location to 3
+	mov   ecx, 1				; Reset counter to 1
+	mov   ebx, 0				; Set address offset to 0
+	jmp   _placeOtherSideLoop	; Start loop
+
+ ;; Add stones to the pits on the inactive player''s side
+_placeOtherSideLoop:
+	mov   eax, 1				; Set number of stones to 1
+	cmp   heldStones, 0			; Check if there are no more held stones
+	jle   _exitLoops			; If there are no more held stones, exit the loop
+	cmp   ecx, 6				; Check if the counter reached the maximum pit number
+	jg    _placeMainSide		; If max pit was passed, move to the main side
+	add   [secPit+ebx], eax		; Increment the amount of stones in the pit
+	dec   heldStones			; Decrement the amount of stones held
+	inc   ecx					; Increment the counter
+	add   ebx, 4				; Increment offset to next pit
+	jmp   _placeOtherSideLoop	; Jump back to top of loop
+
+ ;; Move from loops and do post proccessing
+_exitLoops:
+	push  edx					; Push num for last area placed in
+	push  ecx					; Puch counter
+	call  endPit				; Capture a pit
+	pop   ebx
+	cmp   ebx, 1
+	jg    _lastPit
+
+	jmp   _moveMade				; Return with a state of 1
+
+
+_moveMade:
+	pop   ecx					; Restore ECX
+	pop   edx					; Pop return address from the stack into EDX
+	push  1						; Push 1 for successful move
+	push  edx					; Restore return address to the stack
+	jmp   _exit					; End proccess
+
+ ;; Return to controller
+_exit:
+	ret							; Return with state in stack
+
+ ;; Bonus move for ending in Mancala, or Captured pit
+_lastPit:
+	pop   ecx					; Restore ECX
+	pop   edx					; Pop return address from the stack into EDX
+	push  ebx						; Push state from endPit
+	push  edx					; Restore return address to the stack
+	jmp   _exit					; End proccess
+
+ ;; Invalid number for active
+_badActive:
+	pop   ecx					; Restore ECX
+	pop   edx					; Pop return address from the stack into EDX
+	push  3						; Push 3 as state for invalid active player number
+	push  edx					; Restore return address to the stack
+	jmp   _exit					; End proccess
+
+ ;; Pit Check had an issue with the move
+_badPitCheck:
+	pop   ecx					; Restore ECX
+	pop   edx					; Pop return address from the stack into EDX
+	push  ebx					; Push state from checkMove
+	push  edx					; Restore return address to the stack
+	jmp   _exit					; End proccess
+
+ ;; Any major error occured
+_critError:
+	push  offset error
+	call  writeline
+	call  exitProgram
 movePit ENDP
+
+;;******************************************************************;
+;; Call checkPit(pit, addr)
+;; Parameters:		pit		--	Selected pit
+;;					addr	--	Address of side of board to check
+;; Returns:			state	--	Whether pit is valid
+;; Registers Used:	EAX, EBX, EDX
+;; 
+;; Checks pit in the side of the board to see if the pit is 
+;;		valid (state: 1), empty (state: 4), or invalid pit (state: 5)
+;;******************************************************************;
+checkPit PROC near
+_checkPit:
+	pop   edx					; Pop return address from the stack into EDX
+	pop   eax					; Pop pit into EAX
+	pop   ebx					; Pop addr into EBX
+	push  edx					; Restore return address to the stack
+
+	 ; Check if pit number is valid
+	cmp   eax, 1				; Check if pit is less than the minimum (1)
+	jl    _invalid				; If so, jump to _invalid
+	cmp   eax, 6				; Check if pit is more than the maximum (6)
+	jg    _invalid				; If so, jump to _invalid
+
+	 ; Check that the selected pit is not empty
+	mov   edx, eax				; Set EDX as address offset
+	sub   edx, 1				; Subtract EDX by 1, so the first pit is not skipped over
+	imul  edx, 4				; Multiply EDX by 4 so offset is by the byte
+	mov   eax, 0				; Clear EAX
+	add   eax, [ebx+edx]		; Put number of stones it the pit into EAX
+	cmp   eax, 0				; Check if the number of stones is 0
+	jle   _empty				; If there are no stones, return empty state
+	jmp   _valid				; Else, return success state
+
+ ; Valid pit that is not empty
+_valid:
+	pop   edx					; Pop return address from the stack into EDX
+	push  1						; Push state of 1 (valid address)
+	push  edx					; Restore return address to the stack
+	jmp   _exit					; Return
+
+ ; Empty pit
+_empty:
+	pop   edx					; Pop return address from the stack into EDX
+	push  4						; Push state of 4 (empty pit)
+	push  edx					; Restore return address to the stack
+	jmp   _exit					; Return
+
+ ;; Invalid pit number
+_invalid:
+	pop   edx					; Pop return address from the stack into EDX
+	push  5						; Push state of 5 (invalid pit)
+	push  edx					; Restore return address to the stack
+	jmp   _exit					; Return
+
+_exit:
+	ret							; Return with state in stack
+checkPit ENDP
+
+
+endPit PROC near
+_endPit:
+	; TODO
+	ret
+endPit ENDP
 
 
 ;;******************************************************************;
@@ -194,25 +458,39 @@ _printNumber:
 	push  ebx					; Ditto
 	push  ecx					; Ditto
 	cmp   eax,9
-	jle   _printZero
+	jle   _printSpace
+
+ ;; Print the number
 _printNum:						; Write number to the console
 	push  eax
 	call  writeNum
 	;call  printnum
 	jmp   _exit
-_printZero:						; Write a space if number has a single digit
+
+ ;; Write a space if number has a single digit
+_printSpace:
 	push  eax
 	;push  offset zero
 	;call  writeline
 	;call  writespc
 	call  writesp
 	pop   eax
+	cmp   eax, 0
+	je    _printZero
 	jmp   _printNum
+
+ ;; Print a zero if the number is zero
+_printZero:
+	push  offset zero			; Push zero to print
+	call  writeline				; Write zero
+	jmp   _exit
+
+ ;; Return to caller
 _exit:
 	pop   ecx					; Restore Working Registers
 	pop   ebx
 	pop   eax
-	ret
+	ret							; Return
 printNumber ENDP
 
 

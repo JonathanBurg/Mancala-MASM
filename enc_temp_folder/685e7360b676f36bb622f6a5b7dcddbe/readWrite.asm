@@ -150,7 +150,7 @@ _endCount:
 	pop   edx
 	pop   ecx					; Restore EBX and ECX
 	pop   ebx
-	ret							; Return with EAX containing character count
+	ret							;Return with EAX containing character count
 charCount ENDP
 
 
