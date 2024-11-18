@@ -88,7 +88,7 @@ _initializeBoard:
 
 	 ; Set amount of stones in each pit to four
 	mov   eax, 4				; Set number of stones to put in each pit to four
-	mov   ecx, 1				; Reset counter to 1
+	mov   ecx, 1				; Set counter to 1
 	mov   ebx, 0				; Use EBX as an address offset
 
  ;; Set amount of stones in each pit
@@ -98,7 +98,7 @@ _initializeSides:
 	mov   [p1Pit+bx], eax		; Set amount of stones in the pit in p1Pit to 4
 	mov   [p2Pit+bx], eax		; Set amount of stones in the pit in p2Pit to 4
 	inc   ecx					; Increment the counter
-	add   ebx, 4				; Increment offset to next pit
+	inc   ebx					; Increment offset to next pit
 	jmp   _initializeSides		; Jump back to top of loop
 
 _exit:
@@ -135,22 +135,32 @@ _printBd:
 
 ;; Set Player 1 as the active player
 _p1Active:
-	mov   eax, [p1Pit]			; Cant move between memory
-	mov   mainPit, [eax]		; Set active side to Player 1
-	mov   eax, [p2Pit]			; Cant move between memory
-	mov   secPit, [eax]			; Set inactive side to Player 2
-	mov   eax, [p1Manc]			; Cant move between memory
-	mov   actManc, [eax]		; Set active mancala to Player 1
-	mov   eax, [p2Manc]			; Cant move between memory
-	mov   inactManc, [eax]		; Set inactive mancala to Player 2
+	mov   ebx, offset p1Pit		; Used to find address of Arrays. For debugging
+	mov   ebx, offset p2Pit		; Ditto
+	mov   ebx, 0				; Clear EBX
+
+	push  offset p2Pit			; Push player 2''s side
+	push  offset p1Pit			; Push player 1''s side
+	call  copySides				; Set mainPit as p1Pit and secPit as p2Pit
+	mov   eax, p1Manc			; Cant move between memory
+	mov   actManc, eax			; Set active mancala to Player 1
+	mov   eax, p2Manc			; Cant move between memory
+	mov   inactManc, eax		; Set inactive mancala to Player 2
 	jmp   _printBoard			; Start printing the board
 
 ;; Set Player 2 as the active player
 _p2Active:
-	mov   mainPit, p2Pit		; Set active side to Player 2
-	mov   secPit, p1Pit			; Set inactive side to Player 1
-	mov   actManc, p2Manc		; Set active mancala to Player 2
-	mov   inactManc, p1Manc		; Set inactive mancala to Player 1
+	mov   ebx, offset p1Pit		; Used to find address of Arrays. For debugging
+	mov   ebx, offset p2Pit		; Ditto
+	mov   ebx, 0				; Clear EBX
+
+	push  offset p1Pit			; Push player 1''s side
+	push  offset p2Pit			; Push player 2''s side
+	call  copySides				; Set mainPit as p2Pit and secPit as p1Pit
+	mov   eax, p2Manc			; Cant move between memory
+	mov   actManc, eax			; Set active mancala to Player 2
+	mov   eax, p1Manc			; Cant move between memory
+	mov   inactManc, eax		; Set inactive mancala to Player 1
 	jmp   _printBoard			; Start printing the board
 
 ;; Start printing the board
@@ -162,13 +172,14 @@ _printBoard:
 	call  writeline				; Write to console
 	;call  print				; Irvine call
 	mov   ecx, 6				; Counter to stop loop
-	mov   ebx, 0				; Set address offset to 0
+	mov   ebx, secPit			; Put address of the array into EBX
 
  ;; Loop to print the second row (Inactive player''s side)
 _rowTwo:
 	mov   eax, 0				; Clear EAX
-	add   eax, [secPit+ebx]		; Put amount of stones in the pit into EAX
-	add   ebx, 4				; Increment the address offset
+	add   al, [ebx]				; Put amount of stones in the pit into EAX
+	;add   ebx, 4				; Increment the address offset
+	inc   ebx					; Increment the address offset
 	push  eax					; Push the amount of stones to print it
 	call  printNumber			; Print the amount of stones
 	call  printMid				; Print the border between pits
@@ -199,13 +210,14 @@ _endRowTwo:
 	call  writeline
 	;call  print
 	mov   ecx, 6				; Counter to stop loop
-	mov   ebx, 0				; Use EBX as address offset, with an initial offset of 0
+	mov   ebx, mainPit			; Put address of the active side into EBX
 
  ;; Loop to print the fourth row
 _rowFour:
 	mov   eax, 0				; Clear EAX
-	add   eax, [mainPit+ebx]	; Move the amount of stones in the pit into EAX
-	add   ebx, 4				; Increment address offset
+	add   al, [ebx]				; Move the amount of stones in the pit into EAX
+	;add   ebx, 4				; Increment address offset
+	inc   ebx					; Increment the address offset
 	push  eax					; Push amount of stones in the pit
 	call  printNumber			; Print amount of stones in the pit
 	call  printMid				; Print border separating each pit
@@ -229,6 +241,30 @@ _exit:
 
 	ret
 printBoard ENDP
+
+;;******************************************************************;
+;; Call copySides(mainSide,inactSide)
+;; Parameters:		mainSide --	Array for active side
+;;					inactSide -- Array for inactive side
+;; Returns:			Nothing
+;; Registers Used:	EAX <(s)> {If saved and restored at the end}
+;; 
+;; Copies the arrays for the pits to mainPit and secPit
+;;******************************************************************;
+copySides PROC near
+_copySides:
+	pop   edx					; Pop return address from the stack into EDX [++]
+	pop   mainPit
+	pop   secPit
+	push  edx					; Restore return address to the stack [--]
+	;mov   edi, offset mainPit	; Put address of main pit into EDI
+	;mov   ecx, 0				; Clear counter
+
+ ;; Loop to copy the main side
+;_copyMain:
+	
+	ret
+copySides ENDP
 
 
 ;;******************************************************************;
@@ -297,14 +333,15 @@ _makeMove:
 	mov   ecx, eax				; Store pit number in ECX for loop
 	mov   edx, eax				; Use EDX to get the address offset
 	sub   edx, 1				; Subtract offset by 1 so the first pit is not skipped
-	imul  edx, 4				; Multiply EDX by 4 to get address offset
+	imul  edx, 1				; Multiply EDX by 4 to get address offset ; TODO
 	mov   eax, 0				; Clear EAX
 	add   eax, [mainPit+edx]	; Put number of stones in the pit into EAX
 	mov   heldStones, eax		; Store number of stones in heldStones
 	mov   eax, 0				; Clear EAX
 	mov   [mainPit+edx], eax	; Clear starting pit
 	mov   ebx, edx				; Move address offset to EBX
-	add   ebx, 4				; Increment offset to next pit
+	;add   ebx, 4				; Increment offset to next pit
+	inc   ebx					; Increment the address offset
 	inc   ecx					; Increment counter to next pit
 	mov   edx, 1				; Set last area placed to 1 (Main side)
 	jmp   _placeMainSideLoop	; Start loop to place stones
@@ -326,7 +363,8 @@ _placeMainSideLoop:
 	add   [mainPit+ebx], eax	; Increment the amount of stones in the pit
 	dec   heldStones			; Decrement the amount of stones held
 	inc   ecx					; Increment the counter
-	add   ebx, 4				; Increment offset to next pit
+	;add   ebx, 4				; Increment offset to next pit
+	inc   ebx					; Increment the address offset
 	jmp   _placeMainSideLoop	; Jump back to top of loop
 
  ;; Add a stone to the active player''s mancala
