@@ -42,6 +42,7 @@ extern	exitProgram:	 near	; main.asm
 extern	initializeBoard: near	; board.asm
 extern	printBoard:		 near	; board.asm
 extern	updateStones:	 near	; board.asm
+extern	movePit:		 near
 
 
 .data
@@ -106,8 +107,12 @@ top:
 	jmp   endRound				; Else restart round
 
 validMove:
-	call  updateStones			; Update the board
-	pop   eax					; Get state
+	push  move
+	push  active
+	call  movePit
+	pop   eax
+	;call  updateStones			; Update the board
+	;pop   eax					; Get state
 
 	cmp   eax, 1				; If move was valid and normal
 	je    moveValid				; Jump to moveValid
