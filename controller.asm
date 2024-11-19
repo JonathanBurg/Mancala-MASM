@@ -59,6 +59,7 @@ p2				byte	"Player 2", 0								; Universal string for indicating player 2
 t				byte	"'s turn.", 10, 0							; Line end for prompting which player is active
 picked			byte	" picked pit ", 0							; Message confirming movement choice
 extra			byte	" ended in their Mancala! Go again.", 10, 0	; Message telling active player they got an extra move
+captured		byte	" captured pit ",0							; Message telling active player they captured a pit
 movBnds			byte	"Move out of bounds: Please enter a number between 1 and 6!", 10, 0	; Message to tell off active player
 endrd			byte	"  ", 10, 10, 0
 error			byte	"Program ran into error, stopping...", 10, 0; Critical error encountered
@@ -83,7 +84,7 @@ _start:
 	mov   active, 1				; Initialize active with a 1
 	call  initializeBoard
 
-top:
+_top:
 	push  active
 	call  printBoard			; Print the board
 	mov   move, 0
@@ -103,41 +104,61 @@ top:
 	pop   eax					; Pop move success state from the stack
 	
 	cmp   eax, 1				; If the move is valid (=1)
-	je    validMove				; Jump to validMove
-	jmp   endRound				; Else restart round
+	je    _validMove				; Jump to validMove
+	jmp   _endRound				; Else restart round
 
-validMove:
+_validMove:
 	push  move
 	push  active
+;;		1 - Move success
+;;		2 - Extra Move
+;;		3 - Invalid Active Player Number
+;;		4 - Empty Pit
+;;		5 - Invalid Pit Number
+;;		6 - Captured Pit
 	call  movePit
 	pop   eax
 	;call  updateStones			; Update the board
 	;pop   eax					; Get state
 
 	cmp   eax, 1				; If move was valid and normal
-	je    moveValid				; Jump to moveValid
+	je    _moveValid				; Jump to moveValid
 	cmp   eax, 2				; If active player ended in their mancala
+	je    _extraMove
+	cmp   eax, 6
+	je    _capturedPit
 	call  writeln				; End the line
-	jmp   endRound				; Else restart round
+	jmp   _endRound				; Else restart round
 
-moveValid:
+_moveValid:
+	push  active
+	call  printBoard
+	call  writeln
+	call  writeln
 	push  active
 	call  switchActive			; Switch the active player
 	pop   active				; Pop new active player in active
-	jmp   endRound				; Start new round
+	jmp   _endRound				; Start new round
 
-extraMove:
+_extraMove:
 	push  active
 	call  writePlayer			; Write the active player
 	push  offset extra			; Tell the active player they got an extra turn
-	jmp   endRound				; Start new round
+	jmp   _endRound				; Start new round
 
-endRound:
+_capturedPit:
+	call  writePlayer			; Write the active player
+	push  offset captured		; Print that the active player captured a pit
+	call  writeline
+	call  writeln				; Start a new line
+	jmp   _moveValid
+
+_endRound:
 	push  offset endrd			; Create space in between the text for different lines
 	call  writeline				; Write the line breaks
-	jmp   top					; Start the new round
+	jmp   _top					; Start the new round
 
-exit:
+_exit:
 	ret							; Return to the main program.
 start ENDP
 
@@ -186,6 +207,10 @@ exit:
 	ret
 
 errorEncountered:
+	call  writeln
+	push  2
+	call  writeNumber
+	call  writeln
 	push  offset error
 	call  writeline
 	call  exitProgram
@@ -268,6 +293,10 @@ _play2:
 	ret							; Return with player 1 as new active player
 
 _errorEncountered:
+	call  writeln
+	push  3
+	call  writeNumber
+	call  writeln
 	push  offset error
 	call  writeline
 	call  exitProgram
@@ -305,6 +334,10 @@ _play2:
 	ret
 
 _errorEncountered:
+	call  writeln
+	push  4
+	call  writeNumber
+	call  writeln
 	push  offset error
 	call  writeline
 	call  exitProgram
