@@ -143,8 +143,7 @@
       </IncludePaths>
     </MASM>
     <MASM Include="readWrite.asm">
-      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </IncludePaths>
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">c:\Irvine\</IncludePaths>
     </MASM>
     <MASM Include="controller.asm">
       <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">c:\Irvine\</IncludePaths>

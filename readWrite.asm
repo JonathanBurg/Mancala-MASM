@@ -1,43 +1,47 @@
-; Main Console program
-; Wayne Cook
-; 20 September 2024
-; Show how to do input and output
-; Revised: WWC 14 March 2024 Added new module
-; Revised: WWC 15 March 2024 Added this comment to force a new commit.
-; Revised: WWC 13 September 2024 Minor updates for Fall 2024 semester.
-; Revised: JB   7 October, 2024 - Added module for a new line
-; Revised: JB  17 October, 2024 - Updated headers and added getInt and intStr
-; Revised: JB  20 October, 2024 - Added a version of writeNumber that ends with no space
-; Register names:
-; Register names are NOT case sensitive eax and EAX are the same register
-; x86 uses 8 registers. EAX (Extended AX register has 32 bits while AX is
-;	the right most 16 bits of EAX). AL is the right-most 8 bits.
-; Writing into AX or AL effects the right most bits of EAX.
-;		EAX - caller saved register - usually used for communication between
-;				caller and callee.
-;		EBX - Callee saved register
-;		ECX - Caller saved register - Counter register 
-;		EDX - Caller Saved register - data, I use it for saving and restoring
-;				the return address
-;		ESI - Callee Saved register - Source Index
-;		EDI - Callee Saved register - Destination Index
-;		ESP - Callee Saved register - stack pointer
-;		EBP - Callee Saved register - base pointer.386P
-; 
-; 
-; Routines:
-;		initializeConsole()
-;		readline()
-;		charCount(string)
-;		writeline(location)
-;		writeln()
-;		writeSp()
-;		writeNum(number)
-;		writeNumber(number)
-;		genNumber()
-;		readInt(prompt)
+;; Main Console program
+;; Wayne Cook
+;; 20 September 2024
+;; Show how to do input and output
+;; Revised: WWC 14 March 2024 Added new module
+;; Revised: WWC 15 March 2024 Added this comment to force a new commit.
+;; Revised: WWC 13 September 2024 Minor updates for Fall 2024 semester.
+;; Revised: JB   7 October, 2024 - Added module for a new line
+;; Revised: JB  17 October, 2024 - Updated headers and added getInt and intStr
+;; Revised: JB  20 October, 2024 - Added a version of writeNumber that ends with no space
+;; Revised: JB  19 November, 2024 - Changing output method to use Irvine
+;; Revised: JB  20 November, 2024 - Adding procedure to clear the console (Props to AG),
+;;											and further Irvine conversions
+;; Register names:
+;; Register names are NOT case sensitive eax and EAX are the same register
+;; x86 uses 8 registers. EAX (Extended AX register has 32 bits while AX is
+;;	the right most 16 bits of EAX). AL is the right-most 8 bits.
+;; Writing into AX or AL effects the right most bits of EAX.
+;;		EAX - caller saved register - usually used for communication between
+;;				caller and callee.
+;;		EBX - Callee saved register
+;;		ECX - Caller saved register - Counter register 
+;;		EDX - Caller Saved register - data, I use it for saving and restoring
+;;				the return address
+;;		ESI - Callee Saved register - Source Index
+;;		EDI - Callee Saved register - Destination Index
+;;		ESP - Callee Saved register - stack pointer
+;;		EBP - Callee Saved register - base pointer.386P
+;; 
+;; 
+;; Routines:
+;;		initializeConsole()
+;;		readline()
+;;		charCount(string)
+;;		writeline(location)
+;;		writeln()
+;;		writeSp()
+;;		writeNum(number)
+;;		writeNumber(number)
+;;		genNumber()
+;;		readInt(prompt)
 
-.model flat
+;.model flat ; Not included for Irvine
+INCLUDE Irvine32.inc
 
 ;; Library calls used for input from and output to the console
 extern  _GetStdHandle@4:near
@@ -48,14 +52,19 @@ extern  _ExitProcess@4: near
 
 .data
 
+;; Data for Irvine
+	outHandle    HANDLE ?
+	cellsWritten DWORD ?
+	xyPos COORD <10,2>
+
 msg				byte	"Hello, World", 10, 0			; ends with line feed (10) and NULL
 prompt			byte	"Please type your name: ", 0	; ends with string terminator (NULL or 0)
 results			byte	10,"You typed: ", 0
 newLine			byte	10,0	; Starts a new line
 space			byte	" ",0	; Creates a space
 inputPrompt		dword	?		; Prompt for user input
-outputHandle	dword	?		; Output handle writing to consol. uninitslized
-inputHandle		dword	?		; Input handle reading from consolee. uninitslized
+outputHandle	HANDLE	?		; Output handle writing to consol. uninitslized
+inputHandle		HANDLE	?		; Input handle reading from consolee. uninitslized
 written			dword	?
 retTemp			DD		?		; Temporarily store return address
 INPUT_FLAG		equ		-10
@@ -67,7 +76,11 @@ writeBuffer		byte	1024  DUP(00h)
 numberBuffer	byte	1024  DUP(00h)
 numCharsToRead	dword	1024
 numCharsRead	dword	?		; Unset or uninitialized
+NULL			equ		0
 
+; Needed for clearing the console.
+clear_console byte 1bh, '[', '2', 'J'
+clear_scroll_back byte 1bh, '[', '3', 'J'
 
 .code
 
@@ -433,5 +446,84 @@ endNumberLoop:
 	 ; Returns with the input value in the stack
 	ret
 readInt ENDP
+
+
+;;******************************************************************;
+;; Call clearConsole@0()
+;; Parameters:		None
+;; Returns:			4
+;; Registers Used:	EAX <(s)> {If saved and restored at the end}
+;; 
+;; Written by AG and WC
+;; clears console and scroll back too
+;; returns console mode back to normal
+;; https://learn.microsoft.com/en-us/windows/console/clearing-the-screen
+;; can get much more advanced here: https://en.wikipedia.org/wiki/ANSI_escape_code
+;; clearConsole@0()
+;; output: void
+;;******************************************************************;
+clearConsole@0 proc near
+    push ebp ; save base
+    mov ebp, esp ; get stack pointer
+
+    sub esp, 4
+    push esp
+    push outputHandle
+    ; https://learn.microsoft.com/en-us/windows/console/getconsolemode
+    ; BOOL WINAPI GetConsoleMode(
+    ; _In_  HANDLE  hConsoleHandle,
+    ; _Out_ LPDWORD lpMode
+    ; );
+    call _GetConsoleMode@8
+
+    cmp eax, 0
+    je  _error
+
+    mov eax, [ebp - 4] ; get current console mode
+    or eax, 04h ; ENABLE_VIRTUAL_TERMINAL_PROCESSING ; https://learn.microsoft.com/en-us/windows/console/setconsolemode
+
+    ; https://learn.microsoft.com/en-us/windows/console/setconsolemode
+    ; BOOL WINAPI SetConsoleMode(
+    ; _In_ HANDLE hConsoleHandle,
+    ; _In_ DWORD  dwMode
+    ; );
+    push eax
+    push outputHandle
+    call _SetConsoleMode@8
+
+    cmp eax, 0
+    je _error
+   
+    ; print "\x1b[2J", clear viewable screen
+    ; print "\x1b[3J", clear scroll back
+    ; "\x1b" is an escape char = 1bh
+    push 4
+    push offset clear_console
+    call writeLine
+
+    push 4
+    push offset clear_scroll_back
+    call writeLine
+
+	push 0						; Coordinates 0,0 to upper left corner.
+	push  outputHandle			; [--]
+	call _SetConsoleCursorPosition@8
+
+
+    ; restore the mode on the way out to be nice to other command-Line applications
+    ; pop eax   ; no need to pop and push
+    ; push eax
+    push outputHandle
+    call _SetConsoleMode@8
+
+    jmp _exit
+
+_error:
+
+_exit:
+    mov esp, ebp ; because of the error handling, make sure no vars are forgotten
+    pop ebp
+    ret 4
+clearConsole@0 endp
 
 END
