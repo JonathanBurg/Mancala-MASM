@@ -42,7 +42,7 @@ extern	exitProgram: near	; main.asm
 	mainP			DD		?									; Active Player
 	inactP			DD		?									; Inactive Player
 	retVal			DD		?									; Return state
-	lastPit			DD		?									; Last pit a stone was placed in. For a capture stone
+	captPit			DD		?									; Last pit a stone was placed in. For a capture stone
 
 	;; Message strings
 	noStone			byte	"No stones in desired pit!", 10, 0	; Message for when picked pit is empty
@@ -300,7 +300,7 @@ copySides ENDP
 ;; Parameters:		active	--	Number for the active player
 ;;					pit		--	Selected pit to move
 ;; Returns:			state	--	What move resulted in (Fail, Success)
-;; Registers Used:	EAX, EBX, ECX (s), EDX
+;; Registers Used:	EAX, EBX, ECX, EDX
 ;; 
 ;; Empties selected pit and moves the stones.
 ;; States:
@@ -320,7 +320,6 @@ _movePit:
 	pop   ebx					; Pop active player number into EBX [++]
 	pop   eax					; Pop selected pit into EAX [++]
 	push  edx					; Restore return address to the stack [--]
-	push  ecx					; Save ECX [--]
 	mov   active, ebx			; Store active player in active
 
 	cmp   ebx, 1				; Check if Player 1 is the active player
@@ -349,7 +348,6 @@ _p2Active:
 
  ;; Move stones
 _pitCheck:
-	push  mainPit
 	push  eax					; Save EAX for later [--]
 	push  mainPit				; Push address of active side pits to check move [--]
 	push  eax					; Push pit to check pit number [--]
@@ -357,57 +355,65 @@ _pitCheck:
 	pop   ebx					; Pop move check state into EBX [++]
 	pop   eax
 	cmp   ebx, 1				; Check if move is valid
-	je    _makeMove				; Make move if it is valid
-	jmp	  _badPitCheck			; Pit check came back bad
+	je    _makeMove				;	If so, make move
+	cmp   ebx, 4				; Check if pit is empty
+	je    _emptyPit				;	If so, return with a return value of 4
+	jmp	  _badPitCheck			; Else, Pit check came back bad
 
  ;; Make Move
 _makeMove:
 	mov   ebx, mainPit			; Put address into EBX
 	mov   ecx, eax				; Store pit number in ECX for loop
-	sub   ecx, 1
+	dec   ecx					; Decrease ECX by 1 to get the correct memory address
 	add   ebx, ecx				; Increment mainPit to selected pit
 	mov   eax, 0				; Clear EAX
 	add   al, [ebx]				; Put number of stones in the pit into EAX
 	mov   heldStones, eax		; Store number of stones in heldStones
 	sub   [ebx], al				; Clear starting pit
 	inc   ecx					; Increment counter to next pit
+	mov   edx, ecx				; Set last stone placed location to the pit
 	inc   ebx					; Increment address
-	mov   edx, 1				; Set last stone placed location to 1
 	jmp   _placeMainSideLoop	; Start loop to place stones
 
  ;; Start loop of adding stones to pits on the active player''s side
 _placeMainSide:
 	mov   ebx, mainPit
-	mov   edx, 1				; Use EDX to hold which place was last
 	mov   ecx, 1				; Reset counter to 1
 	jmp   _placeMainSideLoop	; Start loop
 
  ;; Add stones to pits on active player''s side
 _placeMainSideLoop:
-	mov   eax, 1				; Set number of stones to 1
+	mov   eax, 1				; Set number of stones to add to 1
 	cmp   heldStones, 0			; Check if there are no more held stones
 	jle   _exitLoops			; If there are no more held stones, exit the loop
 	cmp   ecx, 6				; Check if the counter reached the maximum pit number
 	jge   _placeMancala			; If max pit was passed, move to the Mancala
 	add   [ebx], al				; Increment the amount of stones in the pit
 	dec   heldStones			; Decrement the amount of stones held
+	inc   edx					; Increment area counter (between 1 and 6)
 	inc   ecx					; Increment the counter
 	inc   ebx					; Increment the address
+	cmp   edx, 13				; Check if the area counter reached the maximum
+	jg    _restartArea			;	If so, reset the area
 	jmp   _placeMainSideLoop	; Jump back to top of loop
+
+;; Adjust area back to 1 after the stone placement loops back into the active side
+_restartArea:
+	mov   edx, 1				; Reset area to 1
+	jmp   _placeMainSideLoop	; Go back to placing stones in the main side
 
  ;; Add a stone to the active player''s mancala
 _placeMancala:
-	mov   edx, 2				; Set last placed location to 2
 	mov   eax, 1				; Get ready to add 1 to the active player''s mancala (can''t add literal to memory directly)
 	add   [actManc], eax		; Add a stone to the Mancala
+	inc   edx					; Increment area counter (should be 7)
 	dec   heldStones			; Decrement amount of held stones
 	jnz   _placeOtherSide		; Start adding stones to inactive side if the number of held stones is not zero
 	jmp   _exitLoops			; If there are no more held stones, exit the loop
 
  ;; Start loop to add stones to the inactive player''s pits
 _placeOtherSide:
-	mov   ebx, secPit
-	mov   edx, 3				; Set last placed location to 3
+	mov   ebx, secPit			; Put address of the inactive player''s pits into EBX
 	mov   ecx, 1				; Reset counter to 1
 	jmp   _placeOtherSideLoop	; Start loop
 
@@ -420,34 +426,30 @@ _placeOtherSideLoop:
 	jge   _placeMainSide		; If max pit was passed, move to the main side
 	add   [ebx], al				; Increment the amount of stones in the pit
 	dec   heldStones			; Decrement the amount of stones held
+	inc   edx					; Increment area counter (between 8 and 13)
 	inc   ecx					; Increment the counter
-	inc   ebx
+	inc   ebx					; Increment address
 	jmp   _placeOtherSideLoop	; Jump back to top of loop
 
  ;; Move from loops and do post proccessing
 _exitLoops:
 	 ; Store working registers
 	push  eax
-	push  ecx
 	push  edx
 
 	push  edx					; Push num for last area placed in [--]
-	push  ecx					; Push counter [--]
 	call  endPit				; Check edge cases
-	call  setManc				; Update mancala
 	pop   ebx					; Pop return value from endPit into EBX
 	pop   edx					; Restore working registers
-	pop   ecx					; Ditto
 	pop   eax					; Ditto
 	jmp   _moveMade				; Time to return
 
  ;; Set return value to state from 
 _moveMade:
-	pop   ecx					; Restore ECX
 	pop   edx					; Pop return address from the stack into EDX
 	push  ebx					; Push return state from endPit
 	push  edx					; Restore return address to the stack
-	jmp   _exit					; End proccess
+	jmp   _exit					; Return to controller
 
  ;; Return to controller
 _exit:
@@ -455,19 +457,23 @@ _exit:
 
  ;; Invalid number for active
 _badActive:
-	pop   ecx					; Restore ECX from start of process
 	pop   edx					; Pop return address from the stack into EDX
 	push  4						; Push 4 as state for invalid active player number
 	push  edx					; Restore return address to the stack
-	jmp   _exit					; End proccess
+	jmp   _exit					; Return to controller
 
  ;; Pit Check had an issue with the move
 _badPitCheck:
-	pop   ecx					; Restore ECX from start of process
 	pop   edx					; Pop return address from the stack into EDX
 	push  ebx					; Push state from checkMove
 	push  edx					; Restore return address to the stack
-	jmp   _exit					; End proccess
+	jmp   _exit					; Return to controller
+
+_emptyPit:
+	pop   edx					; Pop return address from the stack into EDX
+	push  4						; Set return value to 4
+	push  edx					; Restore return address to the stack
+	jmp   _exit					; Return to controller
 
  ;; Any major error occured
 _critError:
@@ -508,7 +514,7 @@ _checkPit:
 	sub   edx, 1				; Subtract EDX by 1, so the first pit is not skipped over
 	add   ebx, edx				; Increment address
 	mov   eax, 0				; Clear EAX
-	mov   eax, ebx				; Put number of stones in the pit into EAX
+	mov   al, [ebx]				; Put number of stones in the pit into EAX
 	cmp   eax, 0				; Check if the number of stones is 0
 	jle   _empty				; If there are no stones, return empty state
 	jmp   _valid				; Else, return success state
@@ -518,23 +524,20 @@ _valid:
 	pop   edx					; Pop return address from the stack into EDX
 	push  1						; Push state of 1 (valid address)
 	push  edx					; Restore return address to the stack
-	jmp   _exit					; Return
+	ret							; Return with state in stack
 
  ; Empty pit
 _empty:
 	pop   edx					; Pop return address from the stack into EDX
 	push  4						; Push state of 4 (empty pit)
 	push  edx					; Restore return address to the stack
-	jmp   _exit					; Return
+	ret							; Return with state in stack
 
  ;; Invalid pit number
 _invalid:
 	pop   edx					; Pop return address from the stack into EDX
 	push  5						; Push state of 5 (invalid pit)
 	push  edx					; Restore return address to the stack
-	jmp   _exit					; Return
-
-_exit:
 	ret							; Return with state in stack
 checkPit ENDP
 
@@ -561,48 +564,47 @@ checkPit ENDP
 ;;******************************************************************;
 endPit PROC near
 _endPit:
-	; TODO
 	mov   ebx, esi				; Save stack pointer in EBX
 	pop   edx					; Pop return address from the stack into EDX
-	pop   ecx					; Pop counter into ECX
-	pop   eax					; Pop area into EAX
+	pop   ecx					; Pop area into ECX
 	push  edx					; Restore return address to the stack
-	mov   edx, eax				; Put area into EDX
-	sub   ecx, 1				; Adjust counter
 
-	call  checkGameOver			; Check if there are no more moves
-	cmp   retVal, 1				; Is the return state anything but 1
-	jne   _retState				; If so return with a value of 7, 8, or 9
+	cmp   ecx, 7				; Check area the last stone was placed in
+	jl    _checkCapture			; If the area is less than 7, then the last stone was placed on the active
+								;		players side, and as such may have captured a pit
+	je    _inManc				; If the area is 7, then the last stone was placed in the mancala, extra move
+	jg    _normalMove			; If the last stone was placed on the inactive player''s side, then no edge
+								;		case can occur.
 
-	cmp   edx, 2				; Check if the last stone was placed in the mancala
-	je    _inManc
-	cmp   edx, 3				; Check if the last stone was placed on the other side
-	je    _normalMove
 
  ;; Check if a pit is captured
 _checkCapture:
+	sub   ecx, 1				; Allow checking the first pit (ECX was less or equal to 6)
 	mov   eax, mainPit			; Put address of the pits in EAX
 	add   eax, ecx				; Add index to address
+	mov   edx, 0				; Clear EDX
 	mov   dl, [eax]				; Load number of stones in the pit into EDX
 	cmp   edx, 1				; Check if last pit only has 1 stone
 	je    _capture
 
  ;; No edge case. Last stone placed in a normal, non-empty pit
 _normalMove:
-	mov   retVal, 1
-	jmp   _retState
+	push  1						; Set return value to 1
+	jmp   _checkEnd
 
  ;; Last stone ended ended in empty pit on active player''s side. 
  ;;		Stones in opposing pit are captured.
 _capture:
 	mov   heldStones, 1			; Take stone from pit
 	mov   edx, 0				; Cant load a literal into a memory space
-	mov   [eax], dl				; Clear pit
+	mov   [eax], dl				; Clear pit that the last stone was placed in
 
 	; Find index of pit on opposing side
 	mov   eax, ecx				; Move counter to EAX
-	mov   ecx, 5				; Set ECX to 6 so result of subtraction is >= 1
-	sub   ecx, eax				; Subtract counter from 7 to get index in ECX
+	mov   ecx, 6				; Set ECX to 6 to find index of pit on opposite side
+	sub   ecx, eax				; Subtract counter from 6 to get index in ECX
+	mov   captPit, ecx			; Store captured pit index in captPit (for post processing)
+	dec   ecx					; Adjust index to get the correct address (not skip pit 1)
 	mov   eax, secPit			; Put address of opposing side into EAX
 	add   eax, ecx				; Get address of pit to capture
 
@@ -614,20 +616,30 @@ _capture:
 	mov   eax, heldStones		; Move captured stones to EAX
 	add   actManc, eax			; Add captured stones to the active player''s mancala
 
-	mov   retVal, 6				; Set return state to 6
-	jmp   _retState				; Return
+	push  6						; Set return state to 6
+	jmp   _checkEnd				; Return
 
  ;; Last stone was placed in the mancala. Active player gets to 
  ;;		go again.
 _inManc:
-	mov   retVal, 2				; Set return state to 2
-	jmp   _retState
+	push  2						; Set return state to 2
+	jmp   _checkEnd
+
+_checkEnd:
+	call  setManc				; Update mancalas
+	call  checkGameOver			; Check if there are no more moves
+	pop   eax					; Pop return value from other checks into EAX
+	cmp   retVal, 1				; Is the return state anything but 1
+	jne   _retState				;	If so return with a value of 7, 8, or 9
+	 ; Else:
+	mov   retVal, eax			; Set the return value as the value from other checks
+	jmp   _retState				; Jump to end
 
  ;; Return to caller
 _retState:
 	mov   esi, ebx				; Fix stack pointer
 	pop   edx					; Pop return address from the stack into EDX
-	pop   ecx					; Extra parameter from an unknown location to remove
+	;pop   ecx					; Extra parameter from an unknown location to remove
 	push  retVal				; Push return state
 	push  edx					; Restore return address to the stack
 	ret							; Return to caller
@@ -670,7 +682,7 @@ _checkGameOver:
 ;; Check Player 1''s side to see if it is empty
 _checkSideOne:
 	mov   eax, 0				; Clear EAX
-	mov   eax, [ebx]			; Load stones in pit into EAX
+	mov   al, [ebx]			; Load stones in pit into EAX
 	add   edx, eax				; Add amount of stones to EDX
 	inc   ebx					; Increment to next pit
 	dec   ecx					; Decrement counter
@@ -688,7 +700,7 @@ _checkSideOne:
 ;; Check Player 2''s side to see if it is empty
 _checkSideTwo:
 	mov   eax, 0				; Clear EAX
-	mov   eax, [ebx]			; Load stones in pit into EAX
+	mov   al, [ebx]			; Load stones in pit into EAX
 	add   edx, eax				; Add amount of stones to EDX
 	inc   ebx					; Increment to next pit
 	dec   ecx					; Decrement counter
@@ -711,10 +723,10 @@ _endGame:
 ;; Clear Player 1''s side
 _clearSideOne:
 	mov   eax, 0				; Clear EAX
-	mov   eax, [ebx]			; Load stones in pit into EAX
+	mov   al, [ebx]				; Load stones in pit into EAX
 	add   edx, eax				; Add amount of stones to EDX
 	mov   eax, 0				; Clear EAX
-	mov   [ebx], eax			; Clear stones in the pit
+	mov   [ebx], al				; Clear stones in the pit
 	inc   ebx					; Increment to next pit
 	dec   ecx					; Decrement counter
 	jnz   _clearSideOne			; If ECX is not zero, jump to start of loop
@@ -729,10 +741,10 @@ _clearSideOne:
 ;; Clear Player 2''s side
 _clearSideTwo:
 	mov   eax, 0				; Clear EAX
-	mov   eax, [ebx]			; Load stones in pit into EAX
+	mov   al, [ebx]				; Load stones in pit into EAX
 	add   edx, eax				; Add amount of stones to EDX
 	mov   eax, 0				; Clear EAX
-	mov   [ebx], eax			; Clear stones in the pit
+	mov   [ebx], al				; Clear stones in the pit
 	inc   ebx					; Increment to next pit
 	dec   ecx					; Decrement counter
 	jnz   _clearSideTwo			; If ECX is not zero, jump to start of loop
@@ -890,6 +902,24 @@ _printMid:
 
 	ret
 printMid ENDP
+
+
+;;******************************************************************;
+;; Call getCaptPit()
+;; Parameters:		None
+;; Returns:			pit	--	Index of the latest captured pit
+;; Registers Used:	EDX
+;; 
+;; Retrieves the index of the last captured pit.
+;; For post processing in controller.asm
+;;******************************************************************;
+getCaptPit PROC near
+_getCaptPit:
+	pop   edx					; Pop return address from the stack into EDX
+	push  captPit				; Push index of the captured pit
+	push  edx					; Restore return address to the stack
+	ret							; Return with index of captured pit
+getCaptPit ENDP
 
 
 ;;******************************************************************;

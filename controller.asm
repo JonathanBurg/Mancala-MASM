@@ -39,6 +39,7 @@ extern	initializeBoard: near	; board.asm
 extern	printBoard:		 near	; board.asm
 extern	updateStones:	 near	; board.asm
 extern	movePit:		 near	; board.asm
+extern	getCaptPit:		 near	; board.asm (for post processing)
 extern	charCount:		 near	; readWrite.asm
 extern	writeLine:		 near	; readWrite.asm
 extern	writeln:		 near	; readWrite.asm
@@ -74,11 +75,11 @@ endrd			byte	"  ", 10, 10, 0
 roundBuffer		byte	"======================== ", 0
 error			byte	"Program ran into error, stopping...", 10, 0; Critical error encountered
 invalidPlayer	byte	"Player number is invalid!", 10, 0			; Error if the player number was invalid
-checkRestart	byte	"Start a new game? (1 to continue, 0 to cancel): ", 0
+checkRestart	byte	"Are you sure you want to start a new game?", 10, "(1 to continue, 0 to cancel): ", 0
 gameRestarted	byte	"Game Restarted!", 10, 10, 0				; Message saying a new game has been started
 gameWin			byte	" won the game! GG!", 10, 0					; Message for a player winning
 gameTie			byte	"Game ended in a Tie!", 10, 0				; Message saying the game tied
-newGmPrompt		byte	"Start new game? (1 for yes)", 0			; Prompt to start a new game or not
+newGmPrompt		byte	"Start new game? (1 for yes): ", 0			; Prompt to start a new game or not
 results			byte	?		; buffer to print vars
 numCharsToRead	dword	1024
 bufferAddr		dword	?
@@ -256,6 +257,7 @@ _exit:
 ;; Show the game instructions to the players
 _instructions:
 	call  seeInstructions		; Present the instructions
+	push  active				; Push the active player number
 	call  printBoard			; Print the board
 	call  gameRound				; Continue round
 
@@ -268,6 +270,7 @@ _restartGame:
 	pop   eax					; Pop confirmation into EAX
 	cmp   eax, 1				; Check if response is a yes
 	je    _restartConfirmed		; If yes, restart game
+	push  active
 	call  printBoard			; If no, Print the board
 	call  gameRound				;	 and continue round
 
@@ -362,6 +365,7 @@ _extraMove:
 	call  writePlayer			; Write the active player
 	push  offset extra			; Tell the active player they got an extra turn
 	call  writeLine
+	push  active
 	call  printBoard			; Print the board
 	call  gameRound				; Give extra move
 
@@ -388,9 +392,7 @@ _capturedPit:
 	call  writePlayer			; Write the active player
 	push  offset captured		; Print that the active player captured a pit
 	call  writeLine
-	mov   eax, 7				; Set EAX to max pit number +1
-	sub   eax, move				; Subtract pit number from EAX to get captured pit number
-	push  eax					; Push the number
+	call  getCaptPit			; Get the index of the captured pit (pit number kept in stack to be written to console)
 	call  writeNumber			; Write the number
 	call  writeln				; Start a new line
 	jmp   _moveNormal			; End post processing like a normal move
@@ -623,6 +625,15 @@ _errorEncountered:
 writePlayer ENDP
 
 
+;;******************************************************************;
+;; Call seeInstructions()
+;; Parameters:		None
+;; Returns:			Nothing
+;; Registers Used:	None
+;; 
+;; Clears screen and displays the game instructions.
+;; Waits for input from user, then clears the screen again.
+;;******************************************************************;
 seeInstructions PROC near
 _seeInstructions:
 	call  clearConsole@0		; Clear the console to fit instructions
