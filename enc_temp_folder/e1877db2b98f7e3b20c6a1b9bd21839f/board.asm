@@ -31,8 +31,6 @@ extern	exitProgram: near	; main.asm
 	p2Pit			DD		?, ?, ?, ?, ?, ?					; Array to hold the pits on player 2''s side 
 	p1Manc			DD		?									; Number of stones in player 1''s mancala
 	p2Manc			DD		?									; Number of stones in player 2''s mancala
-
-	;; Intermediate variables for processing
 	heldStones		DD		?									; Stones left to place
 	mainPit			DD		?									; Buffer to hold active player''s pits
 	secPit			DD		?									; Buffer to hold inactive player''s pits
@@ -42,7 +40,6 @@ extern	exitProgram: near	; main.asm
 	mainP			DD		?									; Active Player
 	inactP			DD		?									; Inactive Player
 	retVal			DD		?									; Return state
-	lastPit			DD		?									; Last pit a stone was placed in. For a capture stone
 
 	;; Message strings
 	noStone			byte	"No stones in desired pit!", 10, 0	; Message for when picked pit is empty

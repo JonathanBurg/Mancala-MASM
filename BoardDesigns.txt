@@ -180,6 +180,8 @@ Taking this version (Unfortunately, I couldn't find the nice round corners in AS
 	║ 00 ╠════╪════╪════╪════╪════╪════╡ 00 ║
 	║    ║ 00 │ 00 │ 00 │ 00 │ 00 │ 00 │    ║
 	╚════╩══1═╧══2═╧══3═╧══4═╧══5═╧══6═╧════╝
+Player 1 
+		 
 
 And translating it to strings with the extended ASCII codes:
 Top Border:
@@ -213,3 +215,27 @@ Right side of 3rd row:
 Bottom Border:
 			╚	═	═	═	═	╩	═	═	1	═	╧	═	═	2	═	╧	═	═	3	═	╧	═	═	4	═	╧	═	═	5	═	╧	═	═	6	═	╧	═	═	═	═	╝
 	"	", 200,205,205,205,205,202,205,205,"1",205,207,205,205,"2",205,207,205,205,"3",205,207,205,205,"4",205,207,205,205,"5",205,207,205,205,"6",205,207,205,205,205,205,188,10,10,0
+
+
+"Thanks for choosing Mancala for your game today!", 10,
+							"In case you dont know how to play, here is a quick rundown of the rules:", 10, 10,
+
+							"   This game is a turn-based, two player game. There are six pits on each players'  ", 10,
+							"   side and a Mancala (large pit) on either side. At the start, the 6 pits on each ", 10,
+							"   side have 4 stones each, and the mancalas are empty.", 10, 10,
+
+							"   Decide who goes first.", 10, 10,
+
+							"   Each turn the active player picks up all the stones in one of their own pits. ", 10, 10,
+							"   Starting with the next pit over (counter-clockwise), drop one stone in each pit ", 10,
+							"   including your own Mancala and skipping your opponents Mancala.", 10,
+							"      • If the last stone is dropped in your own Mancala, you get to play again.", 10,
+							"      • If the last stone is dropped into an empty pit on your own side and there", 10,
+							"            are stones in the pit opposite the pit where you dropped the last stone,", 10,
+							"            then you get to capture your own stone and all the stones in the", 10,
+							"            opposite pit and place them all in your own Mancala.", 10,
+							"      • Otherwise, play transfers to the other player.", 10, 10,
+
+							"   When all the pits on one side are empty, the game ends and the other player gets ", 10,
+							"   to take all of the stones on their own side and place those stones into their own ", 10,
+							"   Mancala. The winner is whoever has the most stones in their Mancala.", 10, 10, 10, 0

@@ -8,9 +8,12 @@
 ;; Revised: JB   7 October, 2024 - Added module for a new line
 ;; Revised: JB  17 October, 2024 - Updated headers and added getInt and intStr
 ;; Revised: JB  20 October, 2024 - Added a version of writeNumber that ends with no space
-;; Revised: JB  19 November, 2024 - Changing output method to use Irvine
-;; Revised: JB  20 November, 2024 - Adding procedure to clear the console (Props to AG),
-;;											and further Irvine conversions
+;; Revised: JB  19 November, 2024 - Changing console input/output to use Irvine
+;; Revised: JB  20 November, 2024 - Adding procedure from AG to clear the console and
+;;						continuing to convert to Irvine. Updated Documentation.
+;; Revised: JB  22 November, 2024 - Annoyed of linker not linking properly with Irvine. 
+;;						abandoning Irvine. Reverting to previous version of readWrite.asm,
+;;						and re-adding procedure to clear the console. Adding Documentation.
 ;; Register names:
 ;; Register names are NOT case sensitive eax and EAX are the same register
 ;; x86 uses 8 registers. EAX (Extended AX register has 32 bits while AX is
@@ -30,9 +33,9 @@
 ;; 
 ;; Routines:
 ;;		initializeConsole()
-;;		readline()
+;;		readLine()
 ;;		charCount(string)
-;;		writeline(location)
+;;		writeLine(location)
 ;;		writeln()
 ;;		writeSp()
 ;;		writeNum(number)
@@ -40,43 +43,41 @@
 ;;		genNumber()
 ;;		readInt(prompt)
 
-;.model flat ; Not included for Irvine
-INCLUDE Irvine32.inc
+.model flat
 
 ;; Library calls used for input from and output to the console
-extern  _GetStdHandle@4:near
-extern  _WriteConsoleA@20:near
-extern  _ReadConsoleA@20:near
-extern  _ExitProcess@4: near
+extern	_GetStdHandle@4:			 near
+extern	_WriteConsoleA@20:			 near
+extern	_ReadConsoleA@20:			 near
+extern	_ExitProcess@4:				 near
+extern	_GetConsoleMode@8:			 near
+extern	_SetConsoleMode@8:			 near
+extern	_SetConsoleCursorPosition@8: near
 
 
 .data
-
-;; Data for Irvine
-	outHandle    HANDLE ?
-	cellsWritten DWORD ?
-	xyPos COORD <10,2>
 
 msg				byte	"Hello, World", 10, 0			; ends with line feed (10) and NULL
 prompt			byte	"Please type your name: ", 0	; ends with string terminator (NULL or 0)
 results			byte	10,"You typed: ", 0
 newLine			byte	10,0	; Starts a new line
 space			byte	" ",0	; Creates a space
+continueMsg		byte	10, "Press enter to continue: ", 0
 inputPrompt		dword	?		; Prompt for user input
-outputHandle	HANDLE	?		; Output handle writing to consol. uninitslized
-inputHandle		HANDLE	?		; Input handle reading from consolee. uninitslized
+outputHandle	dword	?		; Output handle writing to consol. uninitslized
+inputHandle		dword	?		; Input handle reading from consolee. uninitslized
 written			dword	?
 retTemp			DD		?		; Temporarily store return address
 INPUT_FLAG		equ		-10
 OUTPUT_FLAG		equ		-11
 
 ;; Reading and writing requires buffers. I fill them with 00h.
-readBuffer		byte	1024  DUP(00h)
-writeBuffer		byte	1024  DUP(00h)
-numberBuffer	byte	1024  DUP(00h)
-numCharsToRead	dword	1024
-numCharsRead	dword	?		; Unset or uninitialized
-NULL			equ		0
+readBuffer		byte	1024  DUP(00h)	; Buffer to input strings from console
+writeBuffer		byte	1024  DUP(00h)	; Buffer to hold string to write to console
+numberBuffer	byte	1024  DUP(00h)	; Buffer to hold the string resulting from converting an integer to a string
+numCharsToRead	dword	1024			; Number of characters to read from the console
+numCharsRead	dword	?				; Unset or uninitialized. Number of chars read
+NULL			equ		0				; Null value for invokation of MASM processes
 
 ; Needed for clearing the console.
 clear_console byte 1bh, '[', '2', 'J'
@@ -89,98 +90,181 @@ clear_scroll_back byte 1bh, '[', '3', 'J'
 ;; Call initialize_console()
 ;; Parameters:		None
 ;; Returns:			Nothing
-;; Registers Used:	EAX
+;; Registers Used:	EAX (s)
 ;; 
-;; Initialize Input and Output handles so you only have to do that once.
+;; Initialize Input and Output handles so you only have to do that 
+;;		once.
 ;; This is your first assembly routine
+;; 
+;; 
+;; This process sets up the console by storing the handles to the 
+;;		Input and the Output in inputHandle and outputHandle 
+;;		respectively. The process gets the output handle from pushing 
+;;		the OUTPUT_FLAG (-11) to _GetStdHandle@4 which returns the 
+;;		output handle in EAX. Likewize, the input handle is retrieved 
+;;		by pushing the INPUT_FLAG (-10) to _GetStdHandle@4 which 
+;;		returns the input handle in EAX. Since inputHandle and 
+;;		outputHandle are stored in the memory, they can be retrieved 
+;;		by other processes to get input from inputHandle or write 
+;;		strings to outputHandle. This process had no parameters to 
+;;		remove from the stack. This process only needs to be called 
+;;		once (preferably when the program starts) to set up the 
+;;		handles.
+;; 
+;; 
+;; call initialize_console
+;; 
+;; Procedure removes all parameters from the stack.
 ;;******************************************************************;
 initialize_console PROC near
 _initialize_console:
-
-	 ; handle = GetStdHandle(-11)
-	push  OUTPUT_FLAG
-	call  _GetStdHandle@4
+	push  eax					; Save EAX [--]
+	; handle = GetStdHandle(-11)
+	push  OUTPUT_FLAG			; [--]
+	call  _GetStdHandle@4		; [--] [+*2]
 	mov   outputHandle, eax
-	 ; handle = GetStdHandle(-10)
-	push  INPUT_FLAG
-	call  _GetStdHandle@4
+	; handle = GetStdHandle(-10)
+	push  INPUT_FLAG			; [--]
+	call  _GetStdHandle@4		; [--] [+*2]
 	mov   inputHandle, eax
-	ret
-initialize_console ENDP
+	pop   eax					; Restore EAX [++]
+	ret							; [++]
+initialize_console ENDP			; [ESP+=4], Parameters removed from stack [++]
 
 
 ;;******************************************************************;
-;; Call readline()
+;; Call readLine()
 ;; Parameters:		None
-;; Returns:			EAX		--	console input
+;; Returns:			EAX - ptr to buffer
 ;; Registers Used:	EAX
 ;; 
 ;; Now the read/write handles are set, read a line
+;; 
+;; 
+;; This process has no parameters. Instead it uses the
+;;		_ReadConsoleA@20 library to get text input from the user via 
+;;		the console referenced in the inputHandle. The library has 5 
+;;		parameters. The first parameter pushed is the null character, 
+;;		or the string terminator. The second parameter is the address 
+;;		of a buffer to hold the number of chars read. The third 
+;;		parameter is the max amount of chars to read from the handle. 
+;;		The fourth parameter is the address of the buffer to store 
+;;		the read input in. The fifth parameter holds the handle the 
+;;		input is being read from. ReadConsoleA@20 stores the inputted 
+;;		string in readBuffer. The address to the string is stored in 
+;;		EAX which can then be used by the caller.
+;; 
+;; 
+;; call  readLine()
+;; 
+;; Procedure removes all parameters from the stack.
 ;;******************************************************************;
-readline PROC near
-_readline: 
-	 ; ReadConsole(handle, &buffer, numCharToRead, numCharsRead, null)
-	push  0
-	push  offset numCharsRead
-	push  numCharsToRead
-	push  offset readBuffer
-	push  inputHandle
-	call  _ReadConsoleA@20
-	mov   eax, offset readBuffer
-	ret							; Returns with console input in EAX
-readline ENDP
+readLine PROC near
+_readLine:
+	  ; ReadConsole(handle, &buffer, numCharToRead, numCharsRead, null)
+	push  NULL					; Null [--]
+	push  offset numCharsRead	; Number of characters read (1024) [--]
+	push  numCharsToRead		; Number of characters to read (1024) [--]
+	push  offset readBuffer		; Buffer to hold input in [--]
+	push  inputHandle			; Handle for input [--]
+	call  _ReadConsoleA@20		; Get input [--] [+*6]
+	mov   eax, offset readBuffer	; Move address of readBuffer to EAX
+	ret							; Return input in EAX [++]
+readLine ENDP					; [ESP+=4], Parameters removed from stack [++]
 
 
 ;;******************************************************************;
-;; Call charCount(string)
-;; Parameters:		string	--	String to check length of
-;; Returns:			EAX		--	Character Count
+;; Call charCount(addr)
+;; Parameters:		addr - address of buffer = &addr[0]
+;; Returns:			EAX - character count
 ;; Registers Used:	EAX, EBX (s), ECX (s), EDX (s)
 ;; 
-;; All strings need to end with a NULL (0). So I (WWC) do not have to 
-;; manually count the number of characters in the line, I wrote this
-;; routine.
+;; All strings need to end with a NULL (0). So I do not have to 
+;;		manually count the number of characters in the line, I wrote 
+;;		this routine.
+;; 
+;; 
+;; This process counts the number of character in a string. It pops 
+;;		the address of buffer containing the string to be counted 
+;;		into EBX. EAX is used as the counter, and ECX is used to pull 
+;;		individual characters from the buffer to count them and check 
+;;		for the string terminator. The process goes through a loop to 
+;;		pull each character from EBX into the last 8 bits of ECX, 
+;;		checks if the character is the string terminator (0), 
+;;		increments EAX and increments EBX to the next character. If 
+;;		the pulled character is the string terminator, the loop is 
+;;		terminated and the process returns to the caller with the 
+;;		character count in EAX. All parameters are removed from the 
+;;		stack, so no adjustments to ESP are needed.
+;; 
+;; 
+;; push  addr
+;; call  charCount
+;; 
+;; Procedure removes all parameters from the stack.
 ;;******************************************************************;
 charCount PROC near
 _charCount:
-	pop   [retTemp]				; Save return address
-	pop   eax					; Save offset/address of string
-	push  [retTemp]				; Put return address back on the stack
-	push  ebx					; Save EBX
-	push  ecx					; Save ECX
-	push  edx					; Save EDX
+	pop   [retTemp]				; Save return address [++]
+	pop   eax					; Save offset/address of string [++]
+	push  [retTemp]				; Put return address back on the stack [--]
+	push  ebx					; Save EBX [--]
+	push  ecx					; Save ECX [--]
+	push  edx					; Save EDX [--]
 	mov   ebx, eax				; Move offset/address of string to ebx
-	mov   eax,0					; load counter to 0
-	mov   ecx,0					; Clear ECX register
+	mov   eax, 0				; load counter to 0
+	mov   ecx, 0				; Clear ECX register
 _countLoop:
-	mov   cl,[ebx]				; Look at the character in the string
-	cmp   ecx,0					; check for end of string.
+	mov   cl, [ebx]				; Look at the character in the string
+	cmp   ecx, NULL				; check for end of string.
 	je    _endCount
 	inc   eax					; Up the count by one
 	inc   ebx					; go to next letter
 	jmp   _countLoop
 _endCount:
-	pop   edx
-	pop   ecx					; Restore EBX and ECX
-	pop   ebx
-	ret							; Return with EAX containing character count
-charCount ENDP
+	pop   edx					; [++]
+	pop   ecx					; Restore EBX and ECX [++]
+	pop   ebx					; [++]
+	ret							; Return with EAX containing character count [++]
+charCount ENDP					; [ESP+=8], Parameter removed from stack [+*2]
 
 
 ;;******************************************************************;
-;; Call writeline(location)
+;; Call writeLine(location)
 ;; Parameters:		location --	buffer location of the string to be
 ;;								printed
 ;; Returns:			Nothing
 ;; Registers Used:	EAX, EBX, EDX
 ;; 
-;; For all routines, the last item to be pushed on the stack is the
-;; return address, save it to a register then save any other 
-;; expected parameters in registers, then restore the return address
-;; to the stack.
+;; For all routines, the last item to be pushed on the stack is the 
+;;		return address, save it to a register then save any other 
+;;		expected parameters in registers, then restore the return
+;;		address to the stack.
+;; 
+;; 
+;; This routine has one parameters. The first parameter, addr, is 
+;;		stored in EBX. The second parameter, chars, is stored in EAX. 
+;;		addr is the address of the string to write to the console, 
+;;		chars is the number of characters in the string. 
+;;		_WriteConsoleA@20 is used to write to the console and it 
+;;		takes 5 parameters. The first parameter pushed is the 
+;;		character being used as null, or the string terminator. The 
+;;		second parameter is a buffer to hold the characters written. 
+;;		The third parameter is the number of chars to write, or chars. 
+;;		The fourth parameter is the address of the buffer holding the 
+;;		string to be written. The fifth parameter is the handle to 
+;;		write to. All parameters are removed from the stack so no 
+;;		adjustments to ESP are needed.
+;; 
+;; 
+;; push  chars
+;; push  addr
+;; call  writeLine
+;; 
+;; Procedure removes all parameters from the stack.
 ;;******************************************************************;
-writeline PROC near
-_writeline:
+writeLine PROC near
+_writeLine:
 	pop   edx					; pop return address from the stack into EDX
 	pop   ebx					; Pop the buffer location of string to be printed into EBX
 	push  edx					; Restore return address to the stack
@@ -191,15 +275,14 @@ _writeline:
 	pop   ebx
 
 	 ; WriteConsole(handle, &msg[0], numCharsToWrite, &written, 0)
-	push  0
+	push  NULL
 	push  offset written
 	push  eax					; return size to the stack for the call to _WriteConsoleA@20 (20 is how many bits are in the call stack)
 	push  ebx					; return the offset of the line to be written
 	push  outputHandle
 	call  _WriteConsoleA@20
 	ret
-writeline ENDP
-
+writeLine ENDP
 
 
 ;;******************************************************************;
@@ -218,7 +301,7 @@ _writeln:
 	;call  charCount
 	;push  eax
 	push  offset newLine
-	call  writeline
+	call  writeLine
 	pop   eax					; Restore EAX
 	ret
 writeln ENDP
@@ -235,7 +318,7 @@ writeln ENDP
 writesp PROC near
 _writesp:
 	push  offset space
-	call  writeline
+	call  writeLine
 	ret
 writesp ENDP
 
@@ -271,12 +354,12 @@ genNumLoop:
 	jle   endNumLoop
 	mov   edx, 0				; Clear the register for the remainder
 	div   ecx					; Do the divide
-	add   dx,'0'				; Turn the remainer into an ASCII number
+	add   dx, '0'				; Turn the remainer into an ASCII number
 	push  dx					; Now push the remainder onto the stack
 	inc   esi					; increment number count
 	jmp   genNumLoop			; One more time.
 endNumLoop:
-	cmp   esi,0
+	cmp   esi, 0
 	jle   numExit
 	pop   dx
 	mov   [ebx], dx				; Add the number to the output sring
@@ -289,7 +372,7 @@ numExit:
 	mov   [ebx], dx				; Add a space to the end of the number
 	mov   [ebx+1], esi			; Add the number to the output sring
 	push  offset numberBuffer
-	call  writeline
+	call  writeLine
 	 ; Restore working registers
 	pop   esi
 	pop   ecx
@@ -320,16 +403,60 @@ writeNumber ENDP
 
 
 ;;******************************************************************;
-;; Call genNumber()
-;; Parameters:		None
-;; Returns:			Nothing
-;; Registers Used:	None
+;; Call genNumber(number, pointer to ASCII buffer)
+;; Parameters:		number - decimal number to be converted to ASCII
+;;					pointer to ASCII buffer - Address of buffer where 
+;;						to store generated ASCII number
+;; Returns:			ASCII buffer in parameters has generated ASCII 
+;;						number.
+;; Registers Used:	EAX (s), EBX, ECX (s), EDX (s), EBP (s), ESP (s),
+;;					EDI (s), ESI (s)
+;; ASM: call genNumber@8 for two parameters.
+;; genNumber(number, pointer to ASCII buffer) create the ASCII value
+;;	 of a number.
+;; To help callers, I will save all registers, except eax, which 
+;;	 will be location in number ASCII string to be written. This 
+;;	 routine will show the official way to handle the stack and base 
+;;	 pointers. It is less effecient, but it preserves all registers.
 ;; 
-;; writeNumber - print the ASCII value of a number.
-;; To help callers, I will save all registers, except eax, which will be location
-;;  in number ASCII string to be written. This routine will show the official
-;;  way to handle the stack and base pointers. It is less effecient, but it
-;;  preserves all registers.
+;; 
+;; This process is used to translate a number to a string of ASCII 
+;;		characters. This process is recursive, so care should be 
+;;		taken to ensure there is not a stack overflow. This process 
+;;		has two parameters: the number to translate, and the pointer 
+;;		to a buffer to store the resulting string in. Both parameters 
+;;		are accessed using EBP but are not removed from the stack. 
+;;		The pointer that ESP contains at the start is stored in EBP 
+;;		so that the parameters can be accessed, and so ESP can be 
+;;		restored back to its inital value at the end so the return 
+;;		address is not buried. Each recursive iteration, EAX is used 
+;;		to hold the dividend which is the current number held in the 
+;;		stack. If EAX equals 0, the recursive loop will end, EBX is 
+;;		used to hold the pointer to the buffer. ECX is used to divide 
+;;		the value held in EAX by 10 to remove the least significant 
+;;		digit from the number to get ready to translate the next 
+;;		digit. The least significant digit removed by the divide is 
+;;		stored in EDX. The value in DX is then added to value of the 
+;;		ASCII value for '0' to force translate the digit into ASCII. 
+;;		The next recursive iteration is then called with the same 
+;;		buffer address, but the number is set to the dividend stored 
+;;		in EAX. Once the last iteration is reached, each iteration 
+;;		will append the character they have stored in DX to the end 
+;;		of the buffer, and EBX will be incremented to get ready for 
+;;		the next iteration to appends its character. DX will then be
+;;		set to a terminating null and appended to EBX. The working 
+;;		registers are then restored and ESP is set back to the value 
+;;		it had at the start of the routine. Finally the program 
+;;		returns to the caller. The parameters are not removed from 
+;;		the stack, so ESP needs to be adjusted by adding 8 bytes to 
+;;		it. The resultant string will be stored in the buffer that 
+;;		was passed to the stack as a parameter for genNumber.
+;; 
+;; 
+;; push  pointer to ASCII buffer
+;; push  number
+;; call  genNumber
+;; add   esp, 8					; Remove the two parameters
 ;;******************************************************************;
 genNumber PROC near
 _genNumber:
@@ -355,7 +482,7 @@ _genNumber:
 	jle   numExit
 	mov   edx, 0				; Clear the register for the remainder
 	div   ecx					; Do the divide
-	add   dx,'0'				; Turn the remainer into an ASCII number
+	add   dx, '0'				; Turn the remainer into an ASCII number
 	;push  dx					; Now push the remainder onto the stack
 	;inc   esi					; increment number count
 ;; Do another recursive call;
@@ -367,7 +494,7 @@ _genNumber:
 ;; Load the number, one digit at a time.
 	mov   bx, dx				; Add the number to the output sring
 	inc   ebx					; go to the next ASCII location
-	mov   dx, 0					; cannot load a literal into an addressed location
+	mov   dx, NULL				; cannot load a literal into an addressed location
 	mov   bx, dx				; Add a space to the end of the number
 	
 numExit:
@@ -411,9 +538,9 @@ _readInt:
 
 	 ; Type a prompt for the user
 	push  inputPrompt
-	call  writeline
+	call  writeLine
 
-	call  readline
+	call  readLine
 	mov   ecx, eax
 
 	 ; Take what was read and convert to a number
@@ -449,18 +576,37 @@ readInt ENDP
 
 
 ;;******************************************************************;
+;; Call pauseProgram()
+;; Parameters:		None
+;; Returns:			Nothing
+;; Registers Used:	EAX (s)
+;; 
+;; Pauses the program and waits for input from the user. Finishes by
+;; Clearing the screen.
+;;******************************************************************;
+pauseProgram PROC near
+_pauseProgram:
+	 ; Write prompt to continue program
+	push  offset continueMsg	; Push message
+	call  writeLine				; Write prompt
+
+	call  readLine				; Wait for input to continue
+	;sub   esp, 4
+	ret							; Return to caller
+pauseProgram ENDP
+
+
+;;******************************************************************;
 ;; Call clearConsole@0()
 ;; Parameters:		None
-;; Returns:			4
-;; Registers Used:	EAX <(s)> {If saved and restored at the end}
+;; Returns:			Nothing
+;; Registers Used:	EAX, EBP (s), ESP
 ;; 
-;; Written by AG and WC
 ;; clears console and scroll back too
 ;; returns console mode back to normal
 ;; https://learn.microsoft.com/en-us/windows/console/clearing-the-screen
-;; can get much more advanced here: https://en.wikipedia.org/wiki/ANSI_escape_code
-;; clearConsole@0()
-;; output: void
+;; can get much more advanced here: 
+;;					https://en.wikipedia.org/wiki/ANSI_escape_code
 ;;******************************************************************;
 clearConsole@0 proc near
     push ebp ; save base
@@ -497,11 +643,11 @@ clearConsole@0 proc near
     ; print "\x1b[2J", clear viewable screen
     ; print "\x1b[3J", clear scroll back
     ; "\x1b" is an escape char = 1bh
-    push 4
+    ;push 4
     push offset clear_console
     call writeLine
 
-    push 4
+    ;push 4
     push offset clear_scroll_back
     call writeLine
 
@@ -523,7 +669,7 @@ _error:
 _exit:
     mov esp, ebp ; because of the error handling, make sure no vars are forgotten
     pop ebp
-    ret 4
+    ret ;4
 clearConsole@0 endp
 
 END

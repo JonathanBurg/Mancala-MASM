@@ -64,14 +64,14 @@ p2				byte	"Player 2", 0								; Universal string for indicating player 2
 t				byte	"'s turn.", 10, 0							; Line end for prompting which player is active
 picked			byte	" picked pit ", 0							; Message confirming movement choice
 extra			byte	" ended in their Mancala! Go again.", 10, 0	; Message telling active player they got an extra move
-captured		byte	" captured a pit ", 0						; Message telling active player they captured a pit
+captured		byte	" captured pit ",0							; Message telling active player they captured a pit
 movBnds			byte	"Move out of bounds: Please enter a number between 1 and 6!", 10, 0	; Message to tell off active player
-invldInput		byte	"Move is invalid. Please enter a number between 1 and 6!", 10,
-						"For additional help, enter 12.", 10, 0
+invldInput		byte	"Move is invalid. Please enter a number between 1 and 6!",10,
+						"For additional help, enter 12.",10,0
 noStones		byte	"Selected pit is empty. Please select a different pit!", 10, 0
-round			byte	"Round ", 0									; Message to give round count
+round			byte	"Round ",0									; Message to give round count
 endrd			byte	"  ", 10, 10, 0
-roundBuffer		byte	"======================== ", 0
+roundBuffer		byte	"======================== ",0
 error			byte	"Program ran into error, stopping...", 10, 0; Critical error encountered
 invalidPlayer	byte	"Player number is invalid!", 10, 0			; Error if the player number was invalid
 checkRestart	byte	"Start a new game? (1 to continue, 0 to cancel): ", 0

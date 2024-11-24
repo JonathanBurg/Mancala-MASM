@@ -10,15 +10,16 @@
 
 .386P
 .model	flat
+
 extern	_ExitProcess@4:		near
 extern	initialize_console:	near
-extern	start:		near
-extern  charCount:	near
-extern  writeline:	near
+extern	start:				near
+extern	charCount:			near
+extern	writeLine:			near
 
 
 .data
-	exitmsg 	byte	10,10,10,"Hello World!",0	; Exit message
+	exitmsg 		byte	10,10,10,"Hello World!",0	; Exit message
 
 
 .code
@@ -51,7 +52,7 @@ exitProgram PROC near
 _exitProgram:
 	 ; Write an exit message for the user
 	push  offset exitmsg
-	call  writeline
+	call  writeLine
 
 	 ; ExitProcess(uExitCode)
 	push  5						; Push exit code 5
