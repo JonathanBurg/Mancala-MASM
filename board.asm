@@ -6,19 +6,20 @@
 ;; Revised: JB, 14 November 2024 - Adding controls for changing the board based on input from controller.asm
 ;; Revised: JB, 23 November 2024 - Added check for win state
 
-.386P
+INCLUDE Irvine32.inc
 
-.model flat
+writeLine		proto			; readWrite.asm
+charCount		proto			; readWrite.asm
+writeNumber		proto			; readWrite.asm
+writeNum		proto			; readWrite.asm
+writeSp			proto			; readWrite.asm
+writeln			proto			; readWrite.asm
+writePlayer		proto			; readWrite.asm
+writeTab		proto			; readWrite.asm
+setBackground	proto			; readWrite.asm
+setForeground	proto			; readWrite.asm
+exitProgram		proto			; main.asm
 
-extern	writeLine:	 near
-extern	charCount:	 near
-extern	writeNumber: near
-extern	writeNum:	 near
-extern	writesp:	 near
-extern	writeln:	 near
-extern	exitProgram: near	; main.asm
-
-;INCLUDE Irvine32.inc
 
 .data
 	;; Data for Irvine
@@ -33,6 +34,10 @@ extern	exitProgram: near	; main.asm
 	p2Manc			DD		?									; Number of stones in player 2''s mancala
 
 	;; Intermediate variables for processing
+	p1Colors		DD		?, ?, ?, ?, ?, ?, ?					; Colors for the board on player 1''s side
+	p2Colors		DD		?, ?, ?, ?, ?, ?, ?					; Colors for the board on player 2''s side
+	actColor		DD		?
+	inactColor		DD		?
 	heldStones		DD		?									; Stones left to place
 	mainPit			DD		?									; Buffer to hold active player''s pits
 	secPit			DD		?									; Buffer to hold inactive player''s pits
@@ -43,6 +48,7 @@ extern	exitProgram: near	; main.asm
 	inactP			DD		?									; Inactive Player
 	retVal			DD		?									; Return state
 	captPit			DD		?									; Last pit a stone was placed in. For a capture stone
+	pitCount		DD		?									; Number of pits that stones have been placed in
 
 	;; Message strings
 	noStone			byte	"No stones in desired pit!", 10, 0	; Message for when picked pit is empty
@@ -56,24 +62,25 @@ extern	exitProgram: near	; main.asm
 	;; Board Parts
 	;;		Since Visual Studios doesn''t appreciate Unicode, all non UTF-8 characters are 
 	;;		represented by extended ASCII codes
-	boardTop		byte	10, "	", 201, 205, 205, 205, 205, 203, 205, "6", 205, 205, 209, 
-							205, "5", 205, 205, 209, 205, "4", 205, 205, 209, 205, "3", 205, 205, 
-							209, 205, "2", 205, 205, 209, 205, "1", 205, 205, 209, 205, 205, 205, 
-							205, 187, 10, 0						; Top border of the board
-	boardLeft		byte	"	", 186, "    ", 186, " ", 0	; Left Side, 2nd and 4th rows
-	boardLeftC		byte	"	", 186, " ", 0				; Left Side, 3rd row
+	boardTop		byte	201, 205, 205, 205, 205, 203, 205, "6", 205, 205, 209, 205, "5", 205, 
+							205, 209, 205, "4", 205, 205, 209, 205, "3", 205, 205, 209, 205, "2", 
+							205, 205, 209, 205, "1", 205, 205, 209, 205, 205, 205, 205, 187, 0	
+																; Top border of the board
+	boardLeft		byte	186, "    ", 186, " ", 0			; Left Side, 2nd and 4th rows
+	boardLeftC		byte	186, " ", 0							; Left Side, 3rd row
 	boardCenter		byte	" ", 204, 205, 205, 205, 205, 216, 205, 205, 205, 205, 216, 205, 205, 
 							205, 205, 216, 205, 205, 205, 205, 216, 205, 205, 205, 205, 216, 205, 
 							205, 205, 205, 181, " ", 0			; Inner most border, 3rd row
 	boardMid		byte	" ", 179, " ", 0					; Inside for 2nd and 4th rows
-	boardRight		byte	"   ", 186, 10, 0					; Right side end for 2nd and 4th rows
-	boardRightC		byte	" ", 186, 10, 0						; Right side end for 3rd row
-	boardBottom		byte	"	", 200, 205, 205, 205, 205, 202, 205, 205, "1", 205, 207, 205, 
-							205, "2", 205, 207, 205, 205, "3", 205, 207, 205, 205, "4", 205, 207, 
-							205, 205, "5", 205, 207, 205, 205, "6", 205, 207, 205, 205, 205, 205, 
-							188, 10, 0							; Bottom border of the board
-	tab				byte	"	 ", 0						; Buffer on left side to push board towards center of screen.
-	indent			byte	"					", 0		; Buffer to position label for main active player
+	boardRight		byte	"   ", 186, 0						; Right side end for 2nd and 4th rows
+	boardRightC		byte	" ", 186, 0							; Right side end for 3rd row
+	boardBottom		byte	200, 205, 205, 205, 205, 202, 205, 205, "1", 205, 207, 205, 205, "2", 
+							205, 207, 205, 205, "3", 205, 207, 205, 205, "4", 205, 207, 205, 205, 
+							"5", 205, 207, 205, 205, "6", 205, 207, 205, 205, 205, 205, 188, 0
+																; Bottom border of the board
+	boardTab		byte	"	", 0							; Buffer on left side to push board towards center of screen.
+	indent			byte	"					", 0			; Buffer to position label for main active player
+	borderColor		equ		3
 .code
 
 ;;******************************************************************;
@@ -102,19 +109,64 @@ _initializeBoard:
 
  ;; Set amount of stones in each pit
 _initializeSides:
-	cmp   ecx, 6				; Check if the counter reached the maximum pit number
-	jg    _exit					; If max pit was passed, move to the Mancala
 	mov   [p1Pit+bx], eax		; Set amount of stones in the pit in p1Pit to 4
 	mov   [p2Pit+bx], eax		; Set amount of stones in the pit in p2Pit to 4
 	inc   ecx					; Increment the counter
 	inc   ebx					; Increment offset to next pit
-	jmp   _initializeSides		; Jump back to top of loop
+	cmp   ecx, 6				; Make sure counter has not reached 6.
+	jle   _initializeSides		; Jump back to top of loop
+
+	call  resetColors			; Set the colors for the board
 
 _exit:
 	;mov   ebx, [p1Pit]			; Double checking memory to see if I can tell if the arrays were initialized properly
 	;mov   ebx, [p2Pit]
 	ret
 initializeBoard ENDP
+
+
+;;******************************************************************;
+;; Call resetColors()
+;; Parameters:		None
+;; Returns:			Nothing
+;; Registers Used:	EAX (s), EBX (s), ECX (s)
+;; 
+;; Resets the colors for the pits in the board
+;;******************************************************************;
+resetColors PROC near
+_resetColors:
+	;; Save Working registers
+	push  eax
+	push  ebx
+	push  ecx
+
+	;; Set colors for the board
+	mov   eax, offset p1Colors	; Check memory spot for debugging
+	mov   eax, offset p2Colors	; Ditto
+	mov   eax, 0				; Clear EAX
+	mov   ebx, 0				; Set address offset to 0
+	mov   ecx, 6				; Set counter to 6
+_setColors:
+	mov   eax, 14				; Set color number to 14 for Light Cyan
+	mov   [p1Colors+bx], eax	; Add color to p1Colors
+	mov   eax, 15				; Set color number to 15 for Light Magenta
+	mov   [p2Colors+bx], eax	; Add color to p2Colors
+	inc   ebx					; Increment address offset
+	dec   ecx					; Decrement counter
+	jnz   _setColors		; If counter is not zero, jump back to the top
+
+	;; Set colors for Mancalas
+	mov   eax, 7				; Set color number to 7 for blue
+	mov   [p1Colors+bx], eax	; Add color to p1Colors
+	mov   eax, 4				; Set color number to 4 for red
+	mov   [p2Colors+bx], eax	; Add color to p2Colors
+
+	;; Restore working registers
+	pop   ecx
+	pop   ebx
+	pop   ecx
+	ret
+resetColors ENDP
 
 
 ;;******************************************************************;
@@ -148,25 +200,23 @@ _printBd:
 
 ;; Set Player 1 as the active player
 _p1Active:
-	push  offset p2Pit			; Push player 2''s side
-	push  offset p1Pit			; Push player 1''s side
+	push  offset p2Colors		; Push Player 2''s color set
+	push  offset p1Colors		; Push Player 1''s color set
+	push  offset p2Pit			; Push Player 2''s side
+	push  offset p1Pit			; Push Player 1''s side
 	call  copySides				; Set mainPit as p1Pit and secPit as p2Pit
 	mov   eax, p1Manc			; Cant move between memory
 	mov   actManc, eax			; Set active mancala to Player 1
 	mov   eax, p2Manc			; Cant move between memory
 	mov   inactManc, eax		; Set inactive mancala to Player 2
-	mov   eax, offset p1		; Cant move between memory
-	mov   mainP, eax			; Set main player to P1
-	mov   eax, offset p2		; Cant move between memory
-	mov   inactP, eax			; Set inactive player to P2
+	mov   mainP, 1				; Set main player to Player 1
+	mov   inactP, 2				; Set inactive player to Player 2
 	jmp   _printBoard			; Start printing the board
 
 ;; Set Player 2 as the active player
 _p2Active:
-	mov   ebx, offset p1Pit		; Used to find address of Arrays. For debugging
-	mov   ebx, offset p2Pit		; Ditto
-	mov   ebx, 0				; Clear EBX
-
+	push  offset p1Colors		; Push Player 1''s color set
+	push  offset p2Colors		; Push Player 2''s color set
 	push  offset p1Pit			; Push player 1''s side
 	push  offset p2Pit			; Push player 2''s side
 	call  copySides				; Set mainPit as p2Pit and secPit as p1Pit
@@ -174,31 +224,44 @@ _p2Active:
 	mov   actManc, eax			; Set active mancala to Player 2
 	mov   eax, p1Manc			; Cant move between memory
 	mov   inactManc, eax		; Set inactive mancala to Player 1
-	mov   eax, offset p2		; Cant move between memory
-	mov   mainP, eax			; Set main player to P2
-	mov   eax, offset p1		; Cant move between memory
-	mov   inactP, eax			; Set inactive player to P1
+	mov   mainP, 2				; Set main player to Player 2
+	mov   inactP, 1				; Set inactive player to Player 1
 	jmp   _printBoard			; Start printing the board
 
 ;; Start printing the board
 _printBoard:
-	call  writeln				; Start a new line
-	push  offset tab			; Print a indent
-	call  writeLine				; Write to console
+	call  writeTab				; Add a tab
+	call  writeSp				; Write a space
 	push  inactP				; Print inactive player
-	call  writeLine				; Write to console
+	call  writePlayer			; Write to console
+	call  writeTab				; Add a tab
+	push  0						; 5 for yellow
+	call  setBackground			; Set background to yellow
+	push  borderColor			; Color for borders
+	call  setForeground			; Set text color for borders
 	push  offset boardTop		; Print the top of the board
 	call  writeLine				; Write to console
 	;call  print				; Irvine call
+	call  writeTab				; Add an indent
 	push  offset boardLeft		; Print left side of second row
 	call  writeLine				; Write to console
 	;call  print				; Irvine call
 	mov   ecx, 6				; Counter to stop loop
 	mov   ebx, secPit			; Put address of the array into EBX
 	add   ebx, 5				; Start at last index in secPit
+	mov   edx, inactColor		; Put address of color array into EDX
+	add   edx, 5				; Start at last index in inactColor
+	push  edx					; Save color address in stack
 
  ;; Loop to print the second row (Inactive player''s side)
 _rowTwo:
+	pop   edx					; Pop color address from stack
+	mov   eax, 0				; Clear EAX
+	mov   al, [edx]				; Get color for the pit from actColor
+	dec   edx					; Decrement color address
+	push  edx					; Save color address
+	push  eax					; Push color to the stack
+	call  setForeground			; Set the text color
 	mov   eax, 0				; Clear EAX
 	add   al, [ebx]				; Put amount of stones in the pit into EAX
 	;add   ebx, 4				; Increment the address offset
@@ -211,32 +274,63 @@ _rowTwo:
 
  ;; End the second row and print the third row
 _endRowTwo:
+	pop   edx					; Clear color address from stack
+	push  borderColor			; Color for borders
+	call  setForeground			; Set text color for borders
 	push  offset boardRight		; Print right side of board for the second row
 	call  writeLine				; Write to console
-	;call  print
+	call  writeTab				; Add a tab
+
 	push  offset boardLeftC		; Print left side of third row
 	call  writeLine				; Write to console
-	;call  print
-	;mov   eax, p1Manc
+
+	mov   eax, 0				; Clear EAX
+	mov   ebx, inactColor		; Put address of inactive color in EBX
+	add   ebx, 6				; Add 6 to the address
+	mov   al, [ebx]				; Get color for the pit from actColor
+	push  eax					; Push color to the stack
+	call  setForeground			; Set the text color
 	push  inactManc				; Push amount of stones in the inactive player''s mancala
 	call  printNumber			; Print the amount of stones in the inactive player''s mancala
+
+	push  borderColor			; Color for borders
+	call  setForeground			; Set text color to for borders
 	push  offset boardCenter	; Push string holding central horizontal border that separates the two sides of the board
 	call  writeLine				; Print the central border
-	;call  print
-	;mov   eax, p2Manc
+
+	mov   eax, 0				; Clear EAX
+	mov   ebx, actColor			; Put address of active color in EBX
+	add   ebx, 6				; Offset address by 6
+	mov   eax, [ebx]			; Get color for the pit from actColor
+	push  eax					; Push color to the stack
+	call  setForeground			; Set the text color
 	push  actManc				; Push the amount of stones in the active player''s mancala
 	call  printNumber			; Print the amount of stones in the active player''s mancala
+
+	push  borderColor			; Color for borders
+	call  setForeground			; Set text color for borders
 	push  offset boardRightC	; Push the right side border of the third row
 	call  writeLine				; Print the right side border
+
+	call  writeTab				; Add a tab
 	;call  print
 	push  offset boardLeft		; Print left side of second row
 	call  writeLine				; Write to console
 	;call  print
 	mov   ecx, 6				; Counter to stop loop
 	mov   ebx, mainPit			; Put address of the active side into EBX
+	mov   edx, actColor			; Put address of color array into EDX
+	push  edx					; Save color address on stack
 
  ;; Loop to print the fourth row
 _rowFour:
+	pop   edx					; Pop color address from stack
+	mov   eax, 0				; Clear EAX
+	mov   al, [edx]				; Get color for the pit from actColor
+	inc   edx					; Increment color address
+	push  edx					; Save color address
+	push  eax					; Push color to the stack
+	call  setForeground			; Set the text color
 	mov   eax, 0				; Clear EAX
 	add   al, [ebx]				; Move the amount of stones in the pit into EAX
 	;add   ebx, 4				; Increment address offset
@@ -249,15 +343,22 @@ _rowFour:
 
  ;; End the fourth row and print the final row
 _endRowFour:
+	pop   edx					; Clear color address from stack
 	push  offset boardRight		; Print the end of the fourth row
 	call  writeLine				; Print the end of the row
+	call  writeTab				; Add a tab
 	;call  print
 	push  offset boardBottom	; Print the bottom border of the board
 	call  writeLine				; Write to console
-	push  offset indent			; Print tab
-	call  writeLine				; Write to console
+	push  1						; 1 for White
+	call  setForeground			; Set text color to white
+	push  0						; 0 for Black
+	call  setBackground			; Set background color to black
+	call  writeln				; Start a new line
+	push  offset indent
+	call  writeLine				; Indent to position player string
 	push  mainP					; Print active player
-	call  writeLine				; Write to console
+	call  writePlayer			; Write to console
 	call  writeln				; Start a new line
 	;call  print
 
@@ -270,8 +371,11 @@ _exit:
 	ret
 printBoard ENDP
 
+
+
+
 ;;******************************************************************;
-;; Call copySides(mainSide,inactSide)
+;; Call copySides(mainSide,inactSide, mainColors, inactColors)
 ;; Parameters:		mainSide --	Array for active side
 ;;					inactSide -- Array for inactive side
 ;; Returns:			Nothing
@@ -284,6 +388,8 @@ _copySides:
 	pop   edx					; Pop return address from the stack into EDX [++]
 	pop   mainPit
 	pop   secPit
+	pop   actColor
+	pop   inactColor
 	push  edx					; Restore return address to the stack [--]
 	;mov   edi, offset mainPit	; Put address of main pit into EDI
 	;mov   ecx, 0				; Clear counter
@@ -322,6 +428,8 @@ _movePit:
 	push  edx					; Restore return address to the stack [--]
 	mov   active, ebx			; Store active player in active
 
+	call  resetColors			; Reset board colors
+
 	cmp   ebx, 1				; Check if Player 1 is the active player
 	je    _p1Active				; Jump to _p1Active if Player 1 is active
 	cmp   ebx, 2				; Check if Player 2 is the active player
@@ -330,18 +438,22 @@ _movePit:
 
  ;; Set player 1 as active player
 _p1Active:
-	push  offset p2Pit			; Push player 2''s side
-	push  offset p1Pit			; Push player 1''s side
-	call  copySides				; Set mainPit as p1Pit and secPit as p2Pit
+	push  offset p2Colors		; Push player 2 colors [--]
+	push  offset p1Colors		; Push player 1 Colors [--]
+	push  offset p2Pit			; Push player 2''s side [--]
+	push  offset p1Pit			; Push player 1''s side [--]
+	call  copySides				; Set mainPit as p1Pit and secPit as p2Pit [--] [+*5]
 	mov   edx, p1Manc
 	mov   actManc, edx			; Store address of p1Manc in actManc
 	jmp   _pitCheck				; Move stones
 
  ;; Set player 2 as active player
 _p2Active:
-	push  offset p1Pit			; Push player 1''s side
-	push  offset p2Pit			; Push player 2''s side
-	call  copySides				; Set mainPit as p2Pit and secPit as p1Pit
+	push  offset p1Colors		; Push player 1 Colors [--]
+	push  offset p2Colors		; Push player 2 colors [--]
+	push  offset p1Pit			; Push player 1''s side [--]
+	push  offset p2Pit			; Push player 2''s side [--]
+	call  copySides				; Set mainPit as p2Pit and secPit as p1Pit [--] [+*5]
 	mov   edx, p2Manc
 	mov   actManc, edx			; Store address of p2Manc in actManc
 	jmp   _pitCheck				; Move stones
@@ -353,7 +465,7 @@ _pitCheck:
 	push  eax					; Push pit to check pit number [--]
 	call  checkPit				; [--]  [+*3]
 	pop   ebx					; Pop move check state into EBX [++]
-	pop   eax
+	pop   eax					; [++]
 	cmp   ebx, 1				; Check if move is valid
 	je    _makeMove				;	If so, make move
 	cmp   ebx, 4				; Check if pit is empty
@@ -435,12 +547,10 @@ _placeOtherSideLoop:
 _exitLoops:
 	 ; Store working registers
 	push  eax
-	push  edx
 
 	push  edx					; Push num for last area placed in [--]
 	call  endPit				; Check edge cases
 	pop   ebx					; Pop return value from endPit into EBX
-	pop   edx					; Restore working registers
 	pop   eax					; Ditto
 	jmp   _moveMade				; Time to return
 
@@ -485,6 +595,7 @@ _critError:
 	call  writeLine				; Write to console
 	call  exitProgram			; End the program immediately
 movePit ENDP
+
 
 ;;******************************************************************;
 ;; Call checkPit(pit, addr)
@@ -540,6 +651,7 @@ _invalid:
 	push  edx					; Restore return address to the stack
 	ret							; Return with state in stack
 checkPit ENDP
+
 
 ;;******************************************************************;
 ;; Call endPit(counter, area)
@@ -644,6 +756,7 @@ _retState:
 	push  edx					; Restore return address to the stack
 	ret							; Return to caller
 endPit ENDP
+
 
 ;;******************************************************************;
 ;; Call checkGameOver()
@@ -851,7 +964,7 @@ _printSpace:
 	;push  offset zero
 	;call  writeLine
 	;call  writespc
-	call  writesp
+	call  writeSp
 	pop   eax
 	cmp   eax, 0
 	je    _printZero
@@ -887,6 +1000,9 @@ _printMid:
 	push  ebx
 	push  ecx
 	push  edx
+
+	push  borderColor			; Color for borders
+	call  setForeground			; Set text color for borders
 
 	 ; Print intermediate border
 	;push  brown				; Push brown as color for the border

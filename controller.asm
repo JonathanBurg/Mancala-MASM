@@ -30,24 +30,27 @@
 ;;		checkMove(move)
 ;;		
 
-.386P
+INCLUDE Irvine32.inc
 
-.model	flat
-
-extern	exitProgram:	 near	; main.asm
-extern	initializeBoard: near	; board.asm
-extern	printBoard:		 near	; board.asm
-extern	updateStones:	 near	; board.asm
-extern	movePit:		 near	; board.asm
-extern	getCaptPit:		 near	; board.asm (for post processing)
-extern	charCount:		 near	; readWrite.asm
-extern	writeLine:		 near	; readWrite.asm
-extern	writeln:		 near	; readWrite.asm
-extern	writeNum:		 near	; readWrite.asm
-extern	writeNumber:	 near	; readWrite.asm
-extern	readInt:		 near	; readWrite.asm
-extern	pauseProgram:	 near	; readWrite.asm
-extern	clearConsole@0:	 near	; readWrite.asm
+exitProgram		proto			; main.asm
+initializeBoard	proto			; board.asm
+printBoard		proto			; board.asm
+updateStones	proto			; board.asm
+movePit			proto			; board.asm
+getCaptPit		proto			; board.asm (for post processing)
+charCount		proto			; readWrite.asm
+writeLine		proto			; readWrite.asm
+writeln			proto			; readWrite.asm
+writeNum		proto			; readWrite.asm
+writeNumber		proto			; readWrite.asm
+readInteger		proto			; readWrite.asm
+readIntegerC	proto			; readWrite.asm
+pauseProgram	proto			; readWrite.asm
+clearConsole	proto			; readWrite.asm
+setForeground	proto			; readWrite.asm
+setBackground	proto			; readWrite.asm
+writePlayer		proto			; readWrite.asm
+writePlayers	proto			; readWrite.asm
 
 
 .data
@@ -60,9 +63,7 @@ move			DD		?		; Current move being made
 roundNum		DD		?		; Round count
 msg				byte	"Hello, World", 10, 0						; ends with line feed (10) and NULL
 prompt			byte	"What pit do you choose?: ", 0				; ends with string terminator (NULL or 0)
-p1				byte	"Player 1", 0								; Universal string for indicating player 1
-p2				byte	"Player 2", 0								; Universal string for indicating player 2
-t				byte	"'s turn.", 10, 0							; Line end for prompting which player is active
+turn			byte	" turn!", 10, 0								; Line end for prompting which player is active
 picked			byte	" picked pit ", 0							; Message confirming movement choice
 extra			byte	" ended in their Mancala! Go again.", 10, 0	; Message telling active player they got an extra move
 captured		byte	" captured a pit ", 0						; Message telling active player they captured a pit
@@ -163,20 +164,59 @@ startGame ENDP
 ;;******************************************************************;
 newRound PROC near
 _newRound:
+	;; Print border at top
 	pop   retAddrDump			; Remove return address from stack
 	call  writeln				; Start new line
+	 ; Write left side of border
+	cmp   active, 1				; Set color depending on active player
+	je    _play1Left
+	jmp   _play2Left
+_play1Left:
+	push  14					; Number for light cyan
+	jmp   _writeLeft			; Continue
+_play2Left:
+	push  15					; Number for light magenta
+	jmp   _writeLeft			; Continue
+_writeLeft:
+	call  setForeground			; Set text color
 	push  offset roundBuffer	; Print left side of buffer
 	call  writeLine
+	 ; Write round number
+	cmp   active, 1				; Set color depending on active player
+	je    _play1
+	jmp   _play2
+_play1:
+	push  7						; Number for blue
+	jmp   _writeBorder			; Continue
+_play2:
+	push  4						; Number for red
+	jmp   _writeBorder			; Continue
+_writeBorder:
+	call  setForeground			; Set text color
 	push  offset round			; Print round message
 	call  writeLine
 	push  roundNum				; Print round number
 	call  writeNumber
+	 ; Write border on left side
+	cmp   active, 1				; Set color depending on active player
+	je    _play1Right
+	jmp   _play2Right
+_play1Right:
+	push  14					; Number for light cyan
+	jmp   _writeRight			; Continue
+_play2Right:
+	push  15					; Number for light magenta
+	jmp   _writeRight			; Continue
+_writeRight:
+	call  setForeground			; Set text color
 	push  offset roundBuffer	; Print right side of buffer
 	call  writeLine
 	call  writeln				; Start a new line
+	;; Print the board
 	push  active
 	call  printBoard			; Print the board
 	inc   roundNum				; Increment round number
+	;; Start round
 	call  gameRound				; Do actions
 newRound ENDP
 
@@ -263,10 +303,10 @@ _instructions:
 
 ;; Confirm if user wants to restart game
 _restartGame:
-	call  clearConsole@0		; Clear console
+	call  clearConsole			; Clear console
 	push  offset checkRestart	; Send message to user to confirm restart
 	call  readInt				; Get confirmation input from user
-	call  clearConsole@0		; Clear the console
+	call  clearConsole			; Clear the console
 	pop   eax					; Pop confirmation into EAX
 	cmp   eax, 1				; Check if response is a yes
 	je    _restartConfirmed		; If yes, restart game
@@ -400,11 +440,11 @@ _capturedPit:
 ;; Return state 7 - Game Over, player 1 wins
 ;; Player 1 won the game. Check if user wants to start a new game.
 _player1Win:
-	call  clearConsole@0		; Clear the console
+	call  clearConsole			; Clear the console
 	push  1						; Push Player 1 as active so players can see end result
 	call  printBoard			; Print the board
-	push  offset p1				; Print Player 1
-	call  writeLine				; Write to console
+	push  1						; Tell writePlayer which player to write
+	call  writePlayer			; Write "Player 1" to console
 	push  offset gameWin		; Write win message
 	call  writeLine				; Write to console
 	jmp   _newGameAsk			; Ask if user wants to start a new game
@@ -412,11 +452,11 @@ _player1Win:
 ;; Return state 8 - Game Over, player 2 wins
 ;; Player 2 won the game. Check if user wants to start a new game.
 _player2Win:
-	call  clearConsole@0		; Clear the console
+	call  clearConsole			; Clear the console
 	push  1						; Push Player 1 as active so players can see end result
 	call  printBoard			; Print the board
-	push  offset p2				; Print Player 1
-	call  writeLine				; Write to console
+	push  2						; Tell writePlayer which player to write
+	call  writePlayer			; Write "Player 2" to console
 	push  offset gameWin		; Write win message
 	call  writeLine				; Write to console
 	jmp   _newGameAsk			; Ask if user wants to start a new game
@@ -424,7 +464,7 @@ _player2Win:
 ;; Return state 9 - Game Over, Tie
 ;; Game ended in a tie. Check if user wants to start a new game.
 _noWinner:
-	call  clearConsole@0		; Clear the console
+	call  clearConsole			; Clear the console
 	push  1						; Push Player 1 as active so players can see end result
 	call  printBoard			; Print the board
 	push  offset gameTie		; Write tied game message
@@ -442,7 +482,7 @@ _newGameAsk:
 
 ;; Start a new game
 _startNewGame:
-	call clearConsole@0			; Clear the console
+	call clearConsole			; Clear the console
 	call startGame				; Start a new game
 postProcessing ENDP
 
@@ -459,38 +499,31 @@ userInput PROC near
 _userInput:
 	 ; Check who the active player is.
 	cmp   active, 1
-	je    pl1
-	jl    errorEncountered
+	jl    _errorEncountered
 	cmp   active, 2
-	je    pl2
-	jg    errorEncountered
+	jg    _errorEncountered
 
-pl1:
-	 ; Write "Player 1" to console
-	push  offset p1
-	call  writeLine
-	jmp   endPrompt
+	push  TRUE					; Push TRUE for possesive
+	push  active				; Tell writePlayer what player to write
+	call  writePlayers			; Write "Player #'s" to console
 
-pl2:
-	 ; Write "Player 2" to console
-	push  offset p2
+_endPrompt:
+	push  offset turn			; Write "Turn, what pit do you choose?: " to finish the prompt
 	call  writeLine
-	jmp   endPrompt
-
-endPrompt:
-	push  offset t				; Write "'s Turn, what pit do you choose?: " to finish the prompt
-	call  writeLine
+	push  12					; Number for light green
+	call  setForeground			; Set text color to light green
+	push  green					; Push Irvine number for green
 	push  offset prompt			; Push the prompt to the stack
-	call  readInt				; Get the user input
+	call  readIntegerC			; Get the user input
 	pop   eax					; Pop input value from the stack
 
-exit:
+_exit:
 	pop   edx					; Pop return address from the stack into EDX
 	push  eax					; Push the input value to the stack
 	push  edx					; Restore return address to the stack
 	ret
 
-errorEncountered:
+_errorEncountered:
 	call  writeln
 	push  2
 	call  writeNumber
@@ -585,47 +618,6 @@ switchActive ENDP
 
 
 ;;******************************************************************;
-;; Call writePlayer(player)
-;; Parameters:		player	--	player to print
-;; Returns:			Nothing
-;; Registers Used:	EAX, EDX
-;; 
-;; Write "Player 1" or "Player 2" depending on what player is wanted
-;;******************************************************************;
-writePlayer PROC near
-_writePlayer:
-	pop   edx					; Pop return address from the stack into EDX
-	pop   eax					; Pop player number into EAX
-	push  edx					; Restore return address to the stack
-	
-	cmp	  eax, 1				; If player 1 is wanted
-	je    _play1					; Jump to play1
-	cmp   eax, 2				; If player 2 is wanted
-	je    _play2					; Jump to play2
-	jmp   _errorEncountered		; Else jump to errorEncountered
-
-_play1:
-	push  offset p1
-	call  writeLine
-	ret
-
-_play2:
-	push  offset p2
-	call  writeLine
-	ret
-
-_errorEncountered:
-	call  writeln
-	push  4
-	call  writeNumber
-	call  writeln
-	push  offset error
-	call  writeLine
-	call  exitProgram
-writePlayer ENDP
-
-
-;;******************************************************************;
 ;; Call seeInstructions()
 ;; Parameters:		None
 ;; Returns:			Nothing
@@ -636,7 +628,7 @@ writePlayer ENDP
 ;;******************************************************************;
 seeInstructions PROC near
 _seeInstructions:
-	call  clearConsole@0		; Clear the console to fit instructions
+	call  clearConsole			; Clear the console to fit instructions
 	 ;; Write instructions to the console
 	push  offset instructions
 	call  writeLine
@@ -651,7 +643,7 @@ _seeInstructions:
 	call  writeLine				; Write to console
 
 	call  pauseProgram			; Wait for user to press enter
-	call  clearConsole@0		; Clear the console
+	call  clearConsole			; Clear the console
 
 	ret							; Return to caller
 seeInstructions ENDP

@@ -139,8 +139,7 @@
     </MASM>
     <MASM Include="main.asm">
       <EnableAssemblyGeneratedCodeListing Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EnableAssemblyGeneratedCodeListing>
-      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-      </IncludePaths>
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">c:\Irvine\</IncludePaths>
     </MASM>
     <MASM Include="readWrite.asm">
       <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">c:\Irvine\</IncludePaths>

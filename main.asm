@@ -8,15 +8,13 @@
 ;		main()
 ;		exitProgram()
 
-.386P
-.model	flat
+INCLUDE Irvine32.inc
 
-extern	_ExitProcess@4:		near
-extern	initialize_console:	near
-extern	start:				near
-extern	charCount:			near
-extern	writeLine:			near
-
+ExitProcess			proto
+start				proto		; controller.asm
+initialize_console	proto		; readWrite.asm
+charCount			proto		; readWrite.asm
+writeLine			proto		; readWrite.asm
 
 .data
 	exitmsg 		byte	10,10,10,"Hello World!",0	; Exit message
@@ -55,8 +53,8 @@ _exitProgram:
 	call  writeLine
 
 	 ; ExitProcess(uExitCode)
-	push  5						; Push exit code 5
-	call  _ExitProcess@4
+	mov   ecx,5						; Push exit code 5
+	call  ExitProcess
 exitProgram ENDP
 
 END
