@@ -141,30 +141,35 @@ _resetColors:
 	push  ecx
 
 	;; Set colors for the board
-	mov   eax, offset p1Colors	; Check memory spot for debugging
-	mov   eax, offset p2Colors	; Ditto
 	mov   eax, 0				; Clear EAX
-	mov   ebx, 0				; Set address offset to 0
+	mov   ebx, offset p1Colors	; Put address of p1Colors into EBX
 	mov   ecx, 6				; Set counter to 6
-_setColors:
+_setP1Colors:
 	mov   eax, 14				; Set color number to 14 for Light Cyan
-	mov   [p1Colors+bx], eax	; Add color to p1Colors
+	mov   [ebx], al				; Add color to p1Colors
+	inc   ebx
+	dec   ecx
+	jnz   _setP1Colors			; If counter is not zero, jump back to the top
+
+	mov   eax, 7				; Set color number to 7 for blue
+	mov   [ebx], al				; Add color to p1Colors
+	mov   eax, 0				; Clear EAX
+	mov   ebx, offset p2Colors	; Put address of p1Colors into EBX
+	mov   ecx, 6				; Set counter to 6
+_setP2Colors:
 	mov   eax, 15				; Set color number to 15 for Light Magenta
-	mov   [p2Colors+bx], eax	; Add color to p2Colors
+	mov   [ebx], al				; Add color to p2Colors
 	inc   ebx					; Increment address offset
 	dec   ecx					; Decrement counter
-	jnz   _setColors		; If counter is not zero, jump back to the top
+	jnz   _setP2Colors			; If counter is not zero, jump back to the top
 
-	;; Set colors for Mancalas
-	mov   eax, 7				; Set color number to 7 for blue
-	mov   [p1Colors+bx], eax	; Add color to p1Colors
 	mov   eax, 4				; Set color number to 4 for red
-	mov   [p2Colors+bx], eax	; Add color to p2Colors
+	mov   [ebx], al				; Add color to p2Colors
 
 	;; Restore working registers
 	pop   ecx
 	pop   ebx
-	pop   ecx
+	pop   eax
 	ret
 resetColors ENDP
 
@@ -367,7 +372,7 @@ _exit:
 	pop   edx
 	pop   ecx
 	pop   ebx
-
+	call  resetColors			; Reset colors
 	ret
 printBoard ENDP
 
@@ -474,22 +479,32 @@ _pitCheck:
 
  ;; Make Move
 _makeMove:
-	mov   ebx, mainPit			; Put address into EBX
 	mov   ecx, eax				; Store pit number in ECX for loop
 	dec   ecx					; Decrease ECX by 1 to get the correct memory address
+	; Set color of selected pit to green
+	mov   ebx, actColor			; Put address of color array into EBX
+	add   ebx, ecx				; Increment actColor to selected pit
+	mov   eax, 6				; Put 6 into EAX for green
+	mov   [ebx], al				; Set color of selected pit to green
+	inc   ebx					; Increment address
+	push  ebx					; Save address
+	; Clear selected pit
+	mov   ebx, mainPit			; Put address into EBX
 	add   ebx, ecx				; Increment mainPit to selected pit
 	mov   eax, 0				; Clear EAX
 	add   al, [ebx]				; Put number of stones in the pit into EAX
 	mov   heldStones, eax		; Store number of stones in heldStones
 	sub   [ebx], al				; Clear starting pit
-	inc   ecx					; Increment counter to next pit
+	inc   ecx					; Increment counter
 	mov   edx, ecx				; Set last stone placed location to the pit
 	inc   ebx					; Increment address
 	jmp   _placeMainSideLoop	; Start loop to place stones
 
  ;; Start loop of adding stones to pits on the active player''s side
 _placeMainSide:
-	mov   ebx, mainPit
+	pop   ebx					; Pop color address from other side
+	push  actColor				; Push address of array of colors
+	mov   ebx, mainPit			; Put pit address into EBX
 	mov   ecx, 1				; Reset counter to 1
 	jmp   _placeMainSideLoop	; Start loop
 
@@ -497,7 +512,7 @@ _placeMainSide:
 _placeMainSideLoop:
 	mov   eax, 1				; Set number of stones to add to 1
 	cmp   heldStones, 0			; Check if there are no more held stones
-	jle   _exitLoops			; If there are no more held stones, exit the loop
+	jle   _loopExit				; If there are no more held stones, exit the loop
 	cmp   ecx, 6				; Check if the counter reached the maximum pit number
 	jge   _placeMancala			; If max pit was passed, move to the Mancala
 	add   [ebx], al				; Increment the amount of stones in the pit
@@ -505,6 +520,17 @@ _placeMainSideLoop:
 	inc   edx					; Increment area counter (between 1 and 6)
 	inc   ecx					; Increment the counter
 	inc   ebx					; Increment the address
+	 ; Set Color
+	mov   eax, ebx				; Put address of pits in EAX
+	pop   ebx					; Pop color array address into EBX
+	push  eax					; Store address of pits
+	mov   eax, 12				; Set color number to 12 for light green
+	mov   [ebx], al				; Set color of pit to light green
+	inc   ebx					; Increment color address
+	mov   eax, ebx				; Put color array address in EAX
+	pop   ebx					; Pop pit address into EBX
+	push  eax					; Store color array address
+	 ; Adjust last stone placed location
 	cmp   edx, 13				; Check if the area counter reached the maximum
 	jg    _restartArea			;	If so, reset the area
 	jmp   _placeMainSideLoop	; Jump back to top of loop
@@ -518,6 +544,9 @@ _restartArea:
 _placeMancala:
 	mov   eax, 1				; Get ready to add 1 to the active player''s mancala (can''t add literal to memory directly)
 	add   [actManc], eax		; Add a stone to the Mancala
+	pop   ebx					; Pop color array address into EBX
+	mov   eax, 12				; Set color number to 12 for light green
+	mov   [ebx], al				; Set color of pit to light green
 	inc   edx					; Increment area counter (should be 7)
 	dec   heldStones			; Decrement amount of held stones
 	jnz   _placeOtherSide		; Start adding stones to inactive side if the number of held stones is not zero
@@ -525,6 +554,7 @@ _placeMancala:
 
  ;; Start loop to add stones to the inactive player''s pits
 _placeOtherSide:
+	push  inactColor			; Store color array address
 	mov   ebx, secPit			; Put address of the inactive player''s pits into EBX
 	mov   ecx, 1				; Reset counter to 1
 	jmp   _placeOtherSideLoop	; Start loop
@@ -533,15 +563,31 @@ _placeOtherSide:
 _placeOtherSideLoop:
 	mov   eax, 1				; Set number of stones to 1
 	cmp   heldStones, 0			; Check if there are no more held stones
-	jle   _exitLoops			; If there are no more held stones, exit the loop
-	cmp   ecx, 6				; Check if the counter reached the maximum pit number
+	jle   _loopExit				; If there are no more held stones, exit the loop
+	cmp   ecx, 7				; Check if the counter reached the maximum pit number
 	jge   _placeMainSide		; If max pit was passed, move to the main side
 	add   [ebx], al				; Increment the amount of stones in the pit
 	dec   heldStones			; Decrement the amount of stones held
 	inc   edx					; Increment area counter (between 8 and 13)
 	inc   ecx					; Increment the counter
 	inc   ebx					; Increment address
+
+	 ; Set Color
+	mov   eax, ebx				; Put address of pits in EAX
+	pop   ebx					; Pop color array address into EBX
+	push  eax					; Store address of pits
+	mov   eax, 12				; Set color number to 12 for light green
+	mov   [ebx], al				; Set color of pit to light green
+	inc   ebx					; Increment color address
+	mov   eax, ebx				; Put color array address in EAX
+	pop   ebx					; Pop pit address into EBX
+	push  eax					; Store color array address
+
 	jmp   _placeOtherSideLoop	; Jump back to top of loop
+
+ ;; Stack adjustment
+_loopExit:
+	pop   ebx					; Remove color address from stack
 
  ;; Move from loops and do post proccessing
 _exitLoops:

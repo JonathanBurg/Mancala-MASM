@@ -1,0 +1,112 @@
+Test Path for Mancala
+
+ENTER (CLEAR INSTRUCTIONS)
+
+(ROUND 1)
+0 (Check lower bounds for player 1)
+7 (Check higher bounds for player 1)
+ENTER (Test no instruction)
+SPACE (Test Letter input)
+A (Continue letter input test)
+Z (Continue Letter input test)
+z (continue letter input test)
+5 (Clear pit 5 for Player 1 capture test)
+ENTER (END PLAYER 1 TURN)
+
+(ROUND 2)
+0 (Check lower bounds for player 2)
+7 (Check higher bounds for player 2)
+ENTER (TEST no move)
+SPACE (Test Letter input)
+A (Continue letter input test)
+Z (Continue Letter input test)
+z (continue letter input test)
+3 (Check extra move check for player 2)
+3 (Make sure picking an empty pit is not allowed)
+2 (Check extra move check again just because)
+1 (Make sure there are stones in Pit 2 for capture test)
+ENTER (END PLAYER 2 TURN)
+
+(ROUND 3)
+1 (Check capture for Player 1)
+ENTER (END PLAYER 1 TURN)
+
+(ROUND 4)
+5 (Clear pit 5 for capture test and make sure pit is not captured when final stone
+	is placed in an empty pit on the other side)
+ENTER (END PLAYER 2 TURN)
+
+(ROUND 5)
+5 (Clear pit 5)
+ENTER (END PLAYER 1 TURN)
+
+(ROUND 6)
+3 (Check capturing for player 2)
+ENTER (END PLAYER 2 TURN)
+
+(ROUND 7)
+3 (Check if pit is captured when final stone is placed in an empty pit on the other
+	side and the corresponding pit on the active side only has 1 stone)
+ENTER (END PLAYER 1 TURN)
+
+(ROUND 8)
+2 (Check capture again)
+ENTER (END PLAYER 2 TURN)
+
+(ROUND 9)
+1 (Clear Stone)
+ENTER (END PLAYER 1 TURN)
+
+(ROUND 10)
+6 (Add stones to player 1 side)
+ENTER (END PLAYER 2 TURN)
+
+(ROUND 11)
+5 (Check extra move on player 1 side)
+3 (Start Moving towards finishing game)
+ENTER (END PLAYER 1 TURN)
+
+(ROUND 12)
+1 (Capture pit 4)
+ENTER (END PLAYER 2 TURN)
+
+(ROUND 13)
+2 (Capture pit 4)
+ENTER (END PLAYER 1 TURN)
+
+(ROUND 14)
+2 (Only move available)
+ENTER (END PLAYER 2 TURN)
+
+(ROUND 15)
+6 (Flood Player 2 side with stones)
+ENTER (END PLAYER 1 TURN)
+
+(ROUND 16)
+5 (Capture pit 1)
+ENTER (END PLAYER 2 TURN)
+
+(ROUND 17)
+2 (END GAME with player 2 win)
+1 (Start new game)
+
+NEW GAME
+Input random moves to test extra instructions without a reset board
+(Maybe just 1 - 6)
+(ROUND 7)
+11 (TEST reset)
+Any number but 1 (Test cancel)
+11 (Test reset)
+0  (test cancel again)
+12 (Test instructions)
+ENTER (Clear instructions)
+11 (Test Reset)
+1 (Reset game)
+NEW GAME
+Input random moves to test extra instructions without a reset board
+(Maybe just 1 - 6)
+10 (Test end program)
+
+
+
+

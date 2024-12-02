@@ -532,11 +532,13 @@ genNumber ENDP					; [ESP+=4], 2 Parameters left on stack [++]
 ;;******************************************************************;
 ;; Call readIntegerC(prompt, color)
 ;; Parameters:		prompt	--	Prompt for the desired input
-;;					color	--	Color to set input to
+;;					color	--	Color to set input to (Irvine)
 ;; Returns:			input 	--	User inputted value
 ;; Registers Used:	EAX, EBX (s), ECX (s), EDX
 ;; 
 ;; Routine to get user input and convert it to an integer
+;;		Sets the text color to the desired color for the input, then
+;;		returns the color to what it was.
 ;; Algorithm written by Wayne Cook
 ;; Adapted by Jonathan Burgener to fit program
 ;;******************************************************************;
@@ -774,7 +776,7 @@ writeTab ENDP
 
 
 ;;******************************************************************;
-;; Call setTextC(textColorNum)
+;; Call setForeground(textColorNum)
 ;; Parameters:		textColorNum --	Color to set for text
 ;; Returns:			Nothing
 ;; Registers Used:	EAX, EDX

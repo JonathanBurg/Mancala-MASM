@@ -304,20 +304,29 @@ _instructions:
 ;; Confirm if user wants to restart game
 _restartGame:
 	call  clearConsole			; Clear console
+	push  5						; 5 for yellow
+	call  setForeground			; Set text color to yellow
+	push  lightRed				; Input color to light red
 	push  offset checkRestart	; Send message to user to confirm restart
-	call  readInt				; Get confirmation input from user
+	call  readIntegerC			; Get confirmation input from user
 	call  clearConsole			; Clear the console
 	pop   eax					; Pop confirmation into EAX
 	cmp   eax, 1				; Check if response is a yes
 	je    _restartConfirmed		; If yes, restart game
-	push  active
+	push  1						; 1 for white
+	call  setForeground			; Set text color to white
+	push  active				; Orient board
 	call  printBoard			; If no, Print the board
 	call  gameRound				;	 and continue round
 
 ;; Restart game after confirmation from user
 _restartConfirmed:
+	push  10					; 10 for light gray
+	call  setForeground			; Set text color to light gray
 	push  offset gameRestarted	; Print restart status
 	call  writeLine				; Write to console
+	push  1						; 1 for white
+	call  setForeground			; Set text color to white
 	call  startGame				; Start a new game
 	call  exitProgram			; Just in case
 extraInput ENDP
@@ -508,14 +517,28 @@ _userInput:
 	call  writePlayers			; Write "Player #'s" to console
 
 _endPrompt:
-	push  offset turn			; Write "Turn, what pit do you choose?: " to finish the prompt
-	call  writeLine
+	push  5						; 5 for yellow
+	call  setForeground			; Set text color to yellow
+	push  offset turn			; Write "Turn!" to finish the prompt
+	call  writeLine				; Write to console
 	push  12					; Number for light green
 	call  setForeground			; Set text color to light green
-	push  green					; Push Irvine number for green
+	mov   eax, active			; Move active player number to EAX
+	cmp   eax, 1				; Check if player 1 is active
+	je    _promptP1				; Prompt player 1
+	jmp   _promptP2				; Prompt player 2
+_promptP1:
+	push  blue					; Push Irvine number for blue
 	push  offset prompt			; Push the prompt to the stack
 	call  readIntegerC			; Get the user input
 	pop   eax					; Pop input value from the stack
+	jmp   _exit
+_promptP2:
+	push  red					; Push Irvine number for red
+	push  offset prompt			; Push the prompt to the stack
+	call  readIntegerC			; Get the user input
+	pop   eax					; Pop input value from the stack
+	jmp   _exit
 
 _exit:
 	pop   edx					; Pop return address from the stack into EDX

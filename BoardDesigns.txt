@@ -175,6 +175,7 @@ Found Extended ASCII codes for these symbols that don't break when in the consol
 
 
 Taking this version (Unfortunately, I couldn't find the nice round corners in ASCII)
+
 	 Player 2
 	╔════╦═6══╤═5══╤═4══╤═3══╤═2══╤═1══╤════╗
 	║    ║ 00 │ 00 │ 00 │ 00 │ 00 │ 00 │    ║
