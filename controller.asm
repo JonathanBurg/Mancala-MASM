@@ -6,7 +6,7 @@
 ;; Revised: JB, 23 November 2024 - Added instructions. Added controls to exit program, 
 ;;										start new game, or pull up instructions. Split
 ;;										up start proccess to smaller proccesses
-;; 
+;; Revised: JB, 2 December 2024 - Added more color to I/O
 ;; Register names:
 ;; Register names are NOT case sensitive eax and EAX are the same register
 ;; x86 uses 8 registers. EAX (Extended AX register has 32 bits while AX is
@@ -49,6 +49,8 @@ pauseProgram	proto			; readWrite.asm
 clearConsole	proto			; readWrite.asm
 setForeground	proto			; readWrite.asm
 setBackground	proto			; readWrite.asm
+setColor		proto			; readWrite.asm
+getCurColor		proto			; readWrite.asm
 writePlayer		proto			; readWrite.asm
 writePlayers	proto			; readWrite.asm
 
@@ -66,19 +68,22 @@ prompt			byte	"What pit do you choose?: ", 0				; ends with string terminator (N
 turn			byte	" turn!", 10, 0								; Line end for prompting which player is active
 picked			byte	" picked pit ", 0							; Message confirming movement choice
 extra			byte	" ended in their Mancala! Go again.", 10, 0	; Message telling active player they got an extra move
-captured		byte	" captured a pit ", 0						; Message telling active player they captured a pit
-movBnds			byte	"Move out of bounds: Please enter a number between 1 and 6!", 10, 0	; Message to tell off active player
+captured		byte	" captured pit ", 0							; Message telling active player they captured a pit
+additional		byte	" and ", 0									; and - introduce an additional comment or interjection
+movBnds			byte	"Move out of bounds: Please enter a number between 1 and 6!", 10, 10, 0	; Message to tell off active player
 invldInput		byte	"Move is invalid. Please enter a number between 1 and 6!", 10,
-						"For additional help, enter 12.", 10, 0
-noStones		byte	"Selected pit is empty. Please select a different pit!", 10, 0
+						"For additional help, enter 12.", 10, 10, 0
+noStones1		byte	"Selected pit is empty! ", 0				; Message for an empty selected pit
+noStones2		byte	"Please select a different pit.", 10, 10, 0	;	Ditto
 round			byte	"Round ", 0									; Message to give round count
 endrd			byte	"  ", 10, 10, 0
 roundBuffer		byte	"======================== ", 0
 error			byte	"Program ran into error, stopping...", 10, 0; Critical error encountered
 invalidPlayer	byte	"Player number is invalid!", 10, 0			; Error if the player number was invalid
-checkRestart	byte	"Are you sure you want to start a new game?", 10, "(1 to continue, 0 to cancel): ", 0
-gameRestarted	byte	"Game Restarted!", 10, 10, 0				; Message saying a new game has been started
-gameWin			byte	" won the game! GG!", 10, 0					; Message for a player winning
+checkRestart	byte	10, "Are you sure you want to start a new game?", 10, "(1 to continue, 0 to cancel): ", 0
+gameRestarted	byte	"Game Restarted!", 10, 0					; Message saying a new game has been started
+gameWin			byte	" won the game! ", 0						; Message for a player winning
+gameWin2		byte	"GG!", 10, 0								;	Ditto
 gameTie			byte	"Game ended in a Tie!", 10, 0				; Message saying the game tied
 newGmPrompt		byte	"Start new game? (1 for yes): ", 0			; Prompt to start a new game or not
 results			byte	?		; buffer to print vars
@@ -179,6 +184,7 @@ _play2Left:
 	jmp   _writeLeft			; Continue
 _writeLeft:
 	call  setForeground			; Set text color
+	call  writeln				; Start a new line
 	push  offset roundBuffer	; Print left side of buffer
 	call  writeLine
 	 ; Write round number
@@ -256,8 +262,12 @@ _normalMove:
 	call  writePlayer			; Write "Player 1" or "Player 2"
 	push  offset picked
 	call  writeLine				; Send a message to the user say the active player has picked their move
+	call  getCurColor			; Save current text color
+	push  6						; 6 for green
+	call  setForeground			; Set the text color to green
 	push  move
 	call  writeNum				; Repeat the user''s choice back to them
+	call  setColor				; Restore text color
 	call  writeln				; End the line
 
 	; Process move
@@ -343,9 +353,13 @@ extraInput ENDP
 ;;******************************************************************;
 invalidInput PROC near
 _invalidInput:
-	pop   retAddrDump			; remove return address
+	pop   retAddrDump			; Remove return address
+	call  getCurColor				; Get the current color from the stack
+	push  11					; 11 for light red
+	call  setForeground			; Set text color to light red
 	push  offset invldInput		; Tell off user
 	call  writeLine				; Write to console
+	call  setColor				; Set color to the value that is still in the stack from getColor
 	call  gameRound				; Restart round
 invalidInput ENDP
 
@@ -396,8 +410,6 @@ _postProcessing:
 ;; Return state 1 - Move success
 ;; Normal Move, start next round after switching active player
 _moveNormal:
-	call  writeln				; Start new line
-	call  writeln				; Ditto
 	push  active
 	call  printBoard			; Print the board
 	push  active				; Push active player
@@ -410,10 +422,14 @@ _moveNormal:
 ;; If last stone placed ended, start new round without switching active player
 _extraMove:
 	call  writeln				; Start a new line
+	call  getCurColor			; Get the current text color
 	push  active
 	call  writePlayer			; Write the active player
+	push  3						; 3 for brown
+	call  setForeground			; Set text color to brown
 	push  offset extra			; Tell the active player they got an extra turn
 	call  writeLine
+	call  setColor				; Set color using value that is still in stack from getColor
 	push  active
 	call  printBoard			; Print the board
 	call  gameRound				; Give extra move
@@ -429,8 +445,16 @@ _invalidPlayerNum:
 ;; Return state 4 - Empty Pit
 ;; The selected pit was empty, not a big problem, just go back to input.
 _emptyPit:
-	push  offset noStones		; Tell user there are no stones in the selected pit
+	call  getCurColor			; Save current color
+	push  11					; 11 for light red
+	call  setForeground			; Set text color to yellow
+	push  offset noStones1		; Tell user there are no stones in the selected pit
 	call  writeLine
+	push  5						; 5 for yellow
+	call  setForeground			; Set text color to yellow
+	push  offset noStones2		; Tell user to select a different pit
+	call  writeLine
+	call  setColor				; Restore coloe
 	call  gameRound				; Restart round
 
 ;; Return state 6 - Captured Pit
@@ -441,8 +465,12 @@ _capturedPit:
 	call  writePlayer			; Write the active player
 	push  offset captured		; Print that the active player captured a pit
 	call  writeLine
+	call  getCurColor			; Save text color
+	push  1						; 1 for white
+	call  setForeground			; Set text color to white
 	call  getCaptPit			; Get the index of the captured pit (pit number kept in stack to be written to console)
 	call  writeNumber			; Write the number
+	call  setColor				; Restore text color
 	call  writeln				; Start a new line
 	jmp   _moveNormal			; End post processing like a normal move
 
@@ -454,8 +482,16 @@ _player1Win:
 	call  printBoard			; Print the board
 	push  1						; Tell writePlayer which player to write
 	call  writePlayer			; Write "Player 1" to console
+	call  getCurColor			; Save current text color
+	push  5						; 5 for yellow
+	call  setForeground			; Set text color to yellow
 	push  offset gameWin		; Write win message
 	call  writeLine				; Write to console
+	push  3						; 3 for brown
+	call  setForeground			; Set text color to brown
+	push  offset gameWin2		; Write win message
+	call  writeLine				; Write to console
+	call  setColor				; Restore text color
 	jmp   _newGameAsk			; Ask if user wants to start a new game
 
 ;; Return state 8 - Game Over, player 2 wins
@@ -466,8 +502,16 @@ _player2Win:
 	call  printBoard			; Print the board
 	push  2						; Tell writePlayer which player to write
 	call  writePlayer			; Write "Player 2" to console
+	call  getCurColor			; Save current text color
+	push  5						; 5 for yellow
+	call  setForeground			; Set text color to yellow
 	push  offset gameWin		; Write win message
 	call  writeLine				; Write to console
+	push  3						; 3 for brown
+	call  setForeground			; Set text color to brown
+	push  offset gameWin2		; Write win message
+	call  writeLine				; Write to console
+	call  setColor				; Restore text color
 	jmp   _newGameAsk			; Ask if user wants to start a new game
 
 ;; Return state 9 - Game Over, Tie
@@ -476,8 +520,12 @@ _noWinner:
 	call  clearConsole			; Clear the console
 	push  1						; Push Player 1 as active so players can see end result
 	call  printBoard			; Print the board
+	call  getCurColor			; Save current text color
+	push  5						; 5 for yellow
+	call  setForeground			; Set text color to yellow
 	push  offset gameTie		; Write tied game message
 	call  writeLine				; Write to console
+	call  setColor				; Restore text color
 	jmp   _newGameAsk			; Ask if user wants to start a new game
 
 ;; Ask user whether to start a new game
@@ -651,7 +699,10 @@ switchActive ENDP
 ;;******************************************************************;
 seeInstructions PROC near
 _seeInstructions:
+	push  1						; 1 for white
+	call  setForeground			; Set text color to white
 	call  clearConsole			; Clear the console to fit instructions
+
 	 ;; Write instructions to the console
 	push  offset instructions
 	call  writeLine
@@ -667,7 +718,7 @@ _seeInstructions:
 
 	call  pauseProgram			; Wait for user to press enter
 	call  clearConsole			; Clear the console
-
+	call  writeln				; Start new line
 	ret							; Return to caller
 seeInstructions ENDP
 

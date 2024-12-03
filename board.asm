@@ -5,6 +5,7 @@
 ;; Revised: JB, 6 November 2024 - Added stubs for printing, updating, and initializing the board
 ;; Revised: JB, 14 November 2024 - Adding controls for changing the board based on input from controller.asm
 ;; Revised: JB, 23 November 2024 - Added check for win state
+;; Revised: JB, 2 December 2024 - Added colors to indicated placed stones and captured pits when printing board.
 
 INCLUDE Irvine32.inc
 
@@ -757,6 +758,14 @@ _capture:
 	mov   edx, 0				; Cant load a literal into a memory space
 	mov   [eax], dl				; Clear pit that the last stone was placed in
 
+	; Set color for active side capture
+	push  ebx					; Save EBX
+	mov   ebx, actColor			; Put address of color array into EBX
+	add   ebx, ecx				; Increment color address to the correct pit
+	mov   edx, 10				; 10 for light gray
+	mov   [ebx], dl				; Set color for pit with last placed stone to light gray
+	pop   ebx					; Restore EBX
+
 	; Find index of pit on opposing side
 	mov   eax, ecx				; Move counter to EAX
 	mov   ecx, 6				; Set ECX to 6 to find index of pit on opposite side
@@ -766,11 +775,23 @@ _capture:
 	mov   eax, secPit			; Put address of opposing side into EAX
 	add   eax, ecx				; Get address of pit to capture
 
+	 ; Set color for inactive capture
+	push  ebx					; Save EBX
+	push  edx					; Save EDX
+	mov   ebx, inactColor		; Put address of color array into EBX
+	add   ebx, ecx				; Increment color address to the correct pit
+	mov   edx, 1				; 1 for white
+	mov   [ebx], dl				; Set color for capture pit to white
+	pop   edx					; Restore EDX
+	pop   ebx					; Restore EBX
+
+	 ; Capture stones from pit on inactive side
 	mov   cl, [eax]				; Use ECX as buffer
 	add   heldStones, ecx		; Add number of stones captured to heldStones
 	mov   ecx, 0				; Set ECX to zero
 	mov   [eax], cl				; Clear stones from pit
 
+	 ; Add captured stones to Mancala
 	mov   eax, heldStones		; Move captured stones to EAX
 	add   actManc, eax			; Add captured stones to the active player''s mancala
 

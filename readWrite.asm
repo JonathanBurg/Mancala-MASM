@@ -660,8 +660,12 @@ clearConsole ENDP
 pauseProgram PROC near
 _pauseProgram:
 	 ; Write prompt to continue program
+	call  getCurColor			; Save current color
+	push  2						; 2 for gray
+	call  setForeground			; Set text color to gray
 	push  offset continueMsg	; Push message
 	call  writeLine				; Write prompt
+	call  setColor				; Restore text color
 
 	call  ReadChar				; Wait for input to continue
 	ret							; Return to caller
@@ -694,7 +698,7 @@ _writePlayers:
 _play1:
 	mov   eax, curBackColor		; Get background color
 	imul  eax, 16				; Multply background color by 16
-	add   eax, 1				; Add number for blue
+	add   eax, blue				; Add number for blue
 	call  setTextColor			; Set text color to blue
 	push  offset p1				; Push address of string to write
 	call  writeLine				; write "Player 1"
@@ -706,7 +710,7 @@ _play1:
 _play2:
 	mov   eax, curBackColor		; Get background color
 	imul  eax, 16				; Multply background color by 16
-	add   eax, 4				; Add number for red
+	add   eax, red				; Add number for red
 	call  setTextColor			; Set text color to red
 	push  offset p2				; Push address of string to write
 	call  writeLine				; write "Player 2"
@@ -884,6 +888,39 @@ setBackground ENDP
 
 
 ;;******************************************************************;
+;; Call setColor(color)
+;; Parameters:		color	--	Irvine Color
+;; Returns:			Nothing
+;; Registers Used:	EAX, ECX (s), EDX
+;; 
+;; Sets the text color using the provided value, then updates
+;; curColor, curTextColor, curBackColor
+;;******************************************************************;
+setColor PROC near
+_setColor:
+	pop   edx					; Pop return address from the stack into EDX [++]
+	pop   eax					; Pop color number into EAX [++]
+	push  edx					; Restore return address to the stack [--]
+	push  ecx					; Save ECX
+	push  eax					; Save EAX
+	
+	call  setTextColor			; Set the color to the value in EAX (Irvine)
+	
+	 ; Set current color
+	pop   eax					; Restore EAX (Least significant 4 bytes)
+	mov   curColor, eax			; Save color as current color
+	mov   edx, 0				; Clear EDX for division (Most significant 4 bytes)
+	mov   ecx, 16				; Set divisor to 16 for hexidecimal division
+	idiv  ecx					; Divide EDX:EAX by ECX
+	mov   curTextColor, edx		; Set current text color to the value in the remainder (EDX)
+	mov   curBackColor, eax		; Set current background color to the value in the quotient (EAX)
+
+	pop   ecx					; Restore ECX
+	ret							; Return to caller
+setColor  ENDP
+
+
+;;******************************************************************;
 ;; Call getColor(colorNum)
 ;; Parameters:		colorNum	--	Number for color to get
 ;; Returns:			color (EAX)	--	Irvine color
@@ -1045,6 +1082,23 @@ _getCurColor:
 	push  edx					; Restore return address to the stack [--]
 	ret
 getCurColor ENDP
+
+
+;;******************************************************************;
+;; Call returnColor()
+;; Parameters:		None
+;; Returns:			Nothing
+;; Registers Used:	EAX (s)
+;; 
+;; Sets color back to the last saved color
+;;******************************************************************;
+returnColor PROC near
+_returnColor:
+	push  eax					; Save EAX
+	mov   eax, curColor			; Move current color to EAX
+	call  setTextColor			; Put color back to the last saved color
+	pop   eax					; Restore EAX
+returnColor ENDP
 
 ;; Irvine Colors
 ;;  0 - black			= #0C0C0C (Cod Gray)

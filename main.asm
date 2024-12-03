@@ -15,6 +15,8 @@ start				proto		; controller.asm
 initialize_console	proto		; readWrite.asm
 charCount			proto		; readWrite.asm
 writeLine			proto		; readWrite.asm
+setForeground		proto		; readWrite.asm
+setColor			proto		; readWrite.asm
 
 .data
 	exitmsg 		byte	10,10,10,"Hello World!",0	; Exit message
@@ -49,9 +51,13 @@ main ENDP
 exitProgram PROC near
 _exitProgram:
 	 ; Write an exit message for the user
-	push  offset exitmsg
-	call  writeLine
+	push  3							; 3 for brown
+	call  setForeground				; Set text color to brown
+	push  offset exitmsg			; Exit message (Hello World!)
+	call  writeLine					; Write exit message to console
 
+	push  white						; Set color to white
+	call  setColor					; Reset color to default (white on black)
 	 ; ExitProcess(uExitCode)
 	mov   ecx,5						; Push exit code 5
 	call  ExitProcess
