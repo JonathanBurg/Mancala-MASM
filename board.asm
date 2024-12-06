@@ -366,8 +366,6 @@ _endRowFour:
 	push  mainP					; Print active player
 	call  writePlayer			; Write to console
 	call  writeln				; Start a new line
-	;call  print
-
 _exit:
 	 ; Restore working registers
 	pop   edx
